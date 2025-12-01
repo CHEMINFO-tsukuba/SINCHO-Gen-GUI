@@ -67,7 +67,7 @@ class OutputController:
 
 
         elif sub_tab == "MD":
-            st.title("MD結果の可視化")
+            st.title("3D Visualization of MD Snapshots")
             hr_tabs = st.tabs(["Animation", "Individual"])
             wdir = os.path.join(os.getcwd(), st.session_state.output_settings["output_dir"], st.session_state.output_settings["MDdir_name"])
             frames_dir = os.path.join(wdir, "separate_file")
@@ -112,7 +112,7 @@ class OutputController:
 
         
         elif sub_tab == "SINCHO":
-            st.title("SINCHO結果の可視化")
+            st.title("3D Visualization of SINCHO Results")
             hr_tabs = st.tabs(["Summary", "Individual"])
 
             sincho_df = pd.DataFrame([], columns=['trajectory_num', 'sincho_rank','anchor atom','predicted mw', 'predicted logp', 'pocket id'])
@@ -160,7 +160,7 @@ class OutputController:
 
 
         elif sub_tab == "ChemTS":
-            st.title("ChemTS結果の可視化")
+            st.title("Generated Compounds by ChemTSv2")
 
             chemts_df = pd.DataFrame([], columns=['trajectory_num', 'rank_num'])
             trajectories = glob.glob(os.path.join(os.getcwd(), st.session_state.output_settings["output_dir"], st.session_state.output_settings["ChemTSdir_name"], "trajectory_*/rank_*"))
@@ -261,9 +261,10 @@ class OutputController:
                     ax.axhline(y=p_logp, color='gray', linestyle='--')
                 st.pyplot(fig)
 
-            st.write(f"ChemTS 生成化合物数(reward≧0.0) … {run_df.shape[0]}")
+            #st.write(f"ChemTS 生成化合物数(reward≧0.0) … {run_df.shape[0]}")
+            #st.write(f"ChemTS 生成化合物数(reward≧1.0) … {run_df[run_df['reward']>=1.0].shape[0]}")
 
-            st.write("ChemTS 生成化合物のプロパティ:")
+            #st.write("ChemTS 生成化合物のプロパティ:")
             thresh = st.slider("reward=X以上の化合物のプロパティを表示", min_value=0.0, max_value=1.0, value=0.0, step=0.01)
             col1, col2, col3 = st.columns([1,1,1])
             with col1:
@@ -290,7 +291,7 @@ class OutputController:
 
 
         elif sub_tab == "AAScore":
-            st.title("スコアリング結果の可視化")
+            st.title("Summary of Potent Compounds")
             hr_tabs = st.tabs(["General", "Ligand Efficiency"])
 
             #highlight用の分子を取得
@@ -329,8 +330,9 @@ class OutputController:
                         start = st.number_input("Start index", min_value=0, max_value=df_gen.shape[0], value=0, step=1, key="start_index_gen")
                     with c2:
                         end = st.number_input("End index",min_value=start,max_value=min(start + 50, df_gen.shape[0]),value=min(start + 50, df_gen.shape[0]),step=1, key="end_index_gen")
+                    per_column = st.number_input("1行に描画する化合物数",min_value=1, max_value=50,value=5, step=1,key="per_column" )
                     if st.button(f"選択範囲: {start} - {end}で２次元描画する", key="gen_2dview_button"):
-                        img = self._summary_2Dview(suppl, int(start), int(end), states, hl_mol=ref_mol)
+                        img = self._summary_2Dview(suppl, int(start), int(end), states, hl_mol=ref_mol, per_column=per_column)
 
                 elif st.session_state.output_settings["mode"] == "3D View":
                     st.write("スコアリング結果を3D形式で表示します。")
@@ -377,8 +379,9 @@ class OutputController:
                         start = st.number_input("Start index", min_value=0, max_value=df_gen.shape[0], value=0, step=1, key="start_index_le")
                     with c2:
                         end = st.number_input("End index",min_value=start,max_value=min(start + 50, df_gen.shape[0]),value=min(start + 50, df_gen.shape[0]),step=1, key="end_index_le")
+                    per_column = st.number_input("1行に描画する化合物数",min_value=1, max_value=50,value=5, step=1,key="per_column" )
                     if st.button(f"選択範囲: {start} - {end}で２次元描画する", key="le_2dview_button"):
-                        img = self._summary_2Dview(suppl, int(start), int(end), states)
+                        img = self._summary_2Dview(suppl, int(start), int(end), states, hl_mol=ref_mol, per_column=per_column)
 
                 elif st.session_state.output_settings["mode"] == "3D View":
                     st.write("スコアリング結果を3D形式で表示します。")
@@ -422,7 +425,7 @@ class OutputController:
         st.pyplot(fig)
 
 
-    def _summary_2Dview(self, suppl, start, end, states, hl_mol=None):
+    def _summary_2Dview(self, suppl, start, end, states, hl_mol=None, per_column=10):
         mols = list(suppl)[start:end]
         ind = start+1
         for mol in mols:
@@ -443,14 +446,14 @@ class OutputController:
                     match.append(())
 
         if states=="General":
-            img = Draw.MolsToGridImage(mols,molsPerRow=10, useSVG=False, 
+            img = Draw.MolsToGridImage(mols,molsPerRow=per_column, useSVG=False, 
             subImgSize=(200,150),legends=["rank"+mol.GetProp('rank')+": "+str(round(float(mol.GetProp('AAScore')),3))+" kcal/mol" for mol in mols], legendFontSize=40,
             highlightAtomLists=match if hl_mol else None)
         elif states=="Ligand Efficiency":
-            img = Draw.MolsToGridImage(mols,molsPerRow=10, useSVG=False, 
-            subImgSize=(200,150),legends=["rank"+mol.GetProp('rank')+": "+str(round(float(mol.GetProp('AAScore_LE')),3)) for mol in mols], legendFontSize=40)
-            #img = Draw.MolsToGridImage(mols,molsPerRow=10, useSVG=False, 
-            #subImgSize=(200,150),legends=["rank"+mol.GetProp('rank')+": "+str(round(float(mol.GetProp('AAScore')),3))+" kcal/mol" for mol in mols], legendFontSize=40)
+            img = Draw.MolsToGridImage(mols,molsPerRow=per_column, useSVG=False, 
+            subImgSize=(200,150),legends=["rank"+mol.GetProp('rank')+": "+str(round(float(mol.GetProp('AAScore_LE')),3)) for mol in mols], legendFontSize=40,
+            highlightAtomLists=match if hl_mol else None)
+        
         st.image(img)
         # ここでバイナリに変換
         from io import BytesIO
@@ -534,6 +537,9 @@ class OutputController:
         view.setStyle({'hetflag': False}, {"cartoon": {"color": "gray"}})
 
         view.zoomTo({"model": 0})
+
+        # temporary_stickview
+        #view.setStyle({'resi':18}, {"stick":{}})
         html(view._make_html(), height=500, width=800)
 
     def _ligfile_3dview(self, lig):

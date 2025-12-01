@@ -76,11 +76,11 @@ class InputController:
                     except Exception as e:
                         st.error(f"作成に失敗しました: {e}")
 
-        if sub_tab == "Upload Complex":
-            st.title("複合体立体構造のアップロード")
+        if sub_tab == "Initial Upload":
+            st.title("Initial Complex Structure Upload")
 
 
-            uploaded_file = st.file_uploader("複合体立体構造ファイルをアップロードしてください (.pdb)", type=["pdb"])
+            uploaded_file = st.file_uploader("複合体のPDBファイルをアップロードしてください", type=["pdb"])
 
             if uploaded_file:
                 # session_state に記録
@@ -111,17 +111,16 @@ class InputController:
                     self._pdb_3dview(st.session_state.uploaded_pdb_file)
                     st.success(f"既にファイル({st.session_state.uploaded_pdb_file.name})がアップロードされています。")
 
-        if sub_tab == "Select Hit Ligand":
-            st.title("ヒット化合物の選択と他残基の確認")
+        if sub_tab == "Hit Residue Selection":
+            st.title("Hit Residue Selection")
 
             try:
                 # まずPDBがアップロードされているかを確認
                 if not st.session_state.uploaded_pdb_file:
-                    st.warning("PDB ファイルがアップロードされていません。最初のステップに戻ってください。")
+                    st.warning("PDB ファイルがアップロードされていません。Initial Uploadタブに戻ってください。")
                     st.stop()
                 
                 st.session_state.residues_list = self._residue_parser(st.session_state.uploaded_pdb_file)
-                st.write("アップロードされたファイルの構成を確認してください。")
                 
                 # session_state で選択値を保持
                 if "hit_residue" not in st.session_state or st.session_state.hit_residue not in st.session_state.residues_list:
@@ -129,7 +128,7 @@ class InputController:
 
                 
                 selected_residue = st.selectbox(
-                    "ヒット化合物となる残基を選択してください(1残基のみ選択可能)",
+                    "ヒット化合物の残基を選択してください(1残基のみ選択可能)",
                     st.session_state.residues_list,
                     index=st.session_state.residues_list.index(st.session_state.hit_residue)
                 )
@@ -142,10 +141,10 @@ class InputController:
                 st.success("ヒット化合物が選択されました。次のステップに進んでください。")
 
             except Exception as e:
-                st.error(f"ファイルの解析中にエラーが発生しました: {e}")
+                st.error(f"ファイルの読み込み中にエラーが発生しました: {e}")
 
         if sub_tab == "MD Settings":
-            st.title("MD系構築・計算条件設定")
+            st.title("Molecular Dynamics Simulation Settings")
 
             if "md_settings" not in st.session_state:
                 st.session_state.md_settings = {}
@@ -174,7 +173,7 @@ class InputController:
                                                                st.selectbox("水分子",["tip3p", "spc"], index=["tip3p", "spc"].index(st.session_state.md_settings["force_field"][2])),
                                                                st.selectbox("RNA (if any)",["OL3", "OL4"], index=["OL3", "OL4"].index(st.session_state.md_settings["force_field"][3]))]
             st.success(f"選択された力場: {st.session_state.md_settings['force_field']}")
-            with st.expander("MD系オプション（平衡化過程等は固定値を使用します。今後軽量版平衡化も選択可能にする予定。）"):
+            with st.expander("シミュレーション条件"): # （平衡化過程等は固定値を使用します。今後軽量版平衡化も選択可能にする予定。）
                 st.session_state.md_settings["temperature"] = st.number_input("温度 (K)(動的変数未実装：現状300K固定です)", value=st.session_state.md_settings["temperature"], step=1)
                 
                 st.write("化合物のパラメータファイルの追加アップロード（残基ごと）➡無い場合はGasteiger chargeを使用")
@@ -237,7 +236,7 @@ class InputController:
                 st.session_state.md_settings["snapshots"] = None
 
         if sub_tab == "SINCHO Settings":
-            st.title("SINCHOの設定")
+            st.title("SINCHO Settings")
             if "p2c_sincho_settings" not in st.session_state:
                 st.session_state.p2c_sincho_settings = {}
             if "distance_range" not in st.session_state.p2c_sincho_settings:
@@ -246,12 +245,14 @@ class InputController:
                 st.session_state.p2c_sincho_settings["npairs_per_snap"] = 10  # ペア数
             if "for_chemts" not in st.session_state.p2c_sincho_settings:
                 st.session_state.p2c_sincho_settings["for_chemts"] = 2  # ChemTSに渡す候補数
+            if "r_point_atoms" not in st.session_state.p2c_sincho_settings:
+                st.session_state.p2c_sincho_settings["r_point_atoms"] = None
 
             if st.session_state.md_settings["snapshots"]:
-                st.success(f"{str(st.session_state.md_settings['snapshots']+1)}個のスナップショットを保存して以降の処理を進めます。")
-                st.session_state.p2c_sincho_settings["distance_range"] = st.number_input("P2Cのポケット探索範囲(化合物からX[Å]以内)", value=st.session_state.p2c_sincho_settings["distance_range"], step=0.1)
-                st.session_state.p2c_sincho_settings["npairs_per_snap"] = st.number_input("SINCHOの予測ペア数(per snap)", value=st.session_state.p2c_sincho_settings["npairs_per_snap"], step=1)
-                st.session_state.p2c_sincho_settings["for_chemts"] = st.number_input("各スナップ当たり、上位何候補をChemTSに渡す？", value=st.session_state.p2c_sincho_settings["for_chemts"], step=1)
+                st.success(f"MDシミュレーションから得られるトラジェクトリから、\n{str(st.session_state.md_settings['snapshots']+1)}個のスナップショットを保存して以降の処理を進めます。")
+                st.session_state.p2c_sincho_settings["distance_range"] = st.number_input("P2Cのポケット探索範囲(化合物からX[Å]以内のポケットのみ探索)", value=st.session_state.p2c_sincho_settings["distance_range"], step=0.1)
+                st.session_state.p2c_sincho_settings["npairs_per_snap"] = st.number_input("SINCHO結果の出力数(per snapshot)", value=st.session_state.p2c_sincho_settings["npairs_per_snap"], step=1)
+                st.session_state.p2c_sincho_settings["for_chemts"] = st.number_input("化合物生成に使用するSINCHO結果のペア数(per snapshot)", value=st.session_state.p2c_sincho_settings["for_chemts"], step=1)
                 if st.session_state.p2c_sincho_settings["npairs_per_snap"] < st.session_state.p2c_sincho_settings["for_chemts"]:
                     st.warning("SINCHOの予測ペア数 > ChemTSに渡すペア数 である必要があります。\n設定を見直してください")
                 else:
@@ -259,8 +260,35 @@ class InputController:
             else:
                 st.warning("スナップショット数の設定が適切ではありません。Production Run設定に戻ってください")
 
+            st.write("R-pointsの制限（optional）")
+            name_list = self._pdb_3dview_res(st.session_state.hit_residue)
+
+            # ① 初期化：p2c_sincho_settings 側
+            if st.session_state.p2c_sincho_settings["r_point_atoms"] is None:
+                # 初回は「全部選択」状態にして保存
+                st.session_state.p2c_sincho_settings["r_point_atoms"] = name_list
+
+            # ② 初期化：multiselect 用の session_state
+            if "selected_r_points" not in st.session_state:
+                # r_point_atoms 文字列 → リスト
+                r_points_str = st.session_state.p2c_sincho_settings["r_point_atoms"] or ""
+                if r_points_str:
+                    default_list = [x for x in r_points_str if x in name_list]
+                else:
+                    default_list = name_list  # 何もなければ全選択とかお好みで
+                st.session_state.selected_r_points = default_list
+
+            # ③ multiselect（ここでは default は渡さないのが重要）
+            st.session_state.p2c_sincho_settings["r_point_atoms"] = st.multiselect(
+                "R-pointとして使用するatomname「のみ」残してください",
+                name_list,
+                key="selected_r_points",
+            )
+
+
+
         if sub_tab == "ChemTS Settings":
-            st.title("ChemTSv2の設定")
+            st.title("ChemTSv2 Settings")
             if "chemts_settings" not in st.session_state:
                 st.session_state.chemts_settings = {}
             if "num_chemts_loops" not in st.session_state.chemts_settings:
@@ -274,7 +302,7 @@ class InputController:
             if "function_format" not in st.session_state.chemts_settings:
                 st.session_state.chemts_settings["function_format"] = "only_sincho"  # 報酬の形式
 
-            st.success(f"{st.session_state.md_settings['snapshots']+1}コのスナップショット×{st.session_state.p2c_sincho_settings['for_chemts']}コのLead Strategyの分だけ、生成を行います。")
+            st.success(f"スナップショット:{st.session_state.md_settings['snapshots']+1}コ × リード展開方針:{st.session_state.p2c_sincho_settings['for_chemts']}コを用いてリード分子生成を行います。")
             with st.expander("Basic setting"):
                 st.session_state.chemts_settings["num_chemts_loops"] = st.number_input("生成の反復回数", value=st.session_state.chemts_settings["num_chemts_loops"], step=1)
                 st.session_state.chemts_settings["c_val"] = st.number_input("C値", value=st.session_state.chemts_settings["c_val"], step=0.1)
@@ -312,7 +340,7 @@ class InputController:
             st.success("ChemTSの設定が完了しました。上記の設定で問題無ければ、次のステップに進んでください。")
 
         if sub_tab == "AAScore Settings":
-            st.title("AAScoreの設定")
+            st.title("AAScore Settings")
             if "aascore_settings" not in st.session_state:
                 st.session_state.aascore_settings = {}
             if "method" not in st.session_state.aascore_settings:
@@ -371,6 +399,7 @@ class InputController:
                         "__SINCHO_DISTANCE_RANGE__": str(st.session_state.p2c_sincho_settings["distance_range"]),
                         "__SINCHO_NPAIRS_PER_SNAP__": str(st.session_state.p2c_sincho_settings["npairs_per_snap"]),
                         "__SINCHO_FOR_CHEMTS__": str(st.session_state.p2c_sincho_settings["for_chemts"]),
+                        "__SINCHO_RESTRICT_RPOINTS__": str(st.session_state.p2c_sincho_settings["r_point_atoms"]),
                         "__CHEMTS_NUM_LOOPS__": str(st.session_state.chemts_settings["num_chemts_loops"]),
                         "__CHEMTS_C_VAL__": str(st.session_state.chemts_settings["c_val"]),
                         "__CHEMTS_THRESHOLD_TYPE__": str(st.session_state.chemts_settings["threshold_type"]),
@@ -384,11 +413,12 @@ class InputController:
                         "__AASCORE_RMS_THRESH__": str(st.session_state.aascore_settings["rms_thresh"]),
                         "__AASCORE_PROTEIN_RANGE__": str(st.session_state.aascore_settings["protein_range"]),
                         "__AASCORE_OUTPUT_NUM__": str(st.session_state.aascore_settings["output_num"]),
+
                     }
 
 
-            st.title("設定の確認と実行")
-            st.write(f"現在の作業ディレクトリ：{os.getcwd()}に、入力ファイルを作成します。")
+            st.title("Settings Summary")
+            st.write(f"ディレクトリ：{os.getcwd()}に入力ファイルを作成します。")
             st.session_state.yaml_name = st.text_input("YAMLファイル名", value="conditions_lala.yaml")
             if st.session_state.yaml_content is None:
                 with open(os.path.join(os.path.dirname(__file__), "conditions_tmp.yaml"), 'r') as file:
@@ -477,11 +507,41 @@ class InputController:
         view.setStyle({'hetflag': False}, {"cartoon": {"color": "gray"}})
         if zoomres:
             view.zoomTo({'resi': zoomres.split(" ")[1]})
-            view.setStyle({'resi':zoomres.split(" ")[1]}, {"stick":{}})
+            view.setStyle({'resi':zoomres.split(" ")[1]}, {"stick":{"colorscheme": "orangeCarbon"}})
         else:
             view.zoomTo()
         html(view._make_html(), height=500, width=800)
         return
+    
+    def _pdb_3dview_res(self, res):
+        #PDBファイルを3次元表示
+        pdb_str = st.session_state.uploaded_pdb_file.getvalue().decode("utf-8")
+        view = py3Dmol.view(height=500, width=800)
+        view.addModel(pdb_str, "pdb")
+
+        name_list = []
+        view.setStyle({'resi': res.split(" ")[1]}, {"stick":{"colorscheme": "orangeCarbon"}})
+        view.zoomTo({'resi': res.split(" ")[1]})
+        for line in pdb_str.splitlines():
+            if (line.startswith("ATOM") or line.startswith("HETATM")) and line[22:26].strip() == res.split(" ")[1] and "H" not in line[12:16].strip():
+                name = line[12:16].strip()
+                x = float(line[30:38])
+                y = float(line[38:46])
+                z = float(line[46:54])
+                view.addLabel(name, {
+                    "position": {"x": x, "y": y, "z": z},
+                    "fontColor": "black",
+                    "backgroundColor": "white",
+                    "fontSize": 15,
+                    "inFront": True
+                })
+                name_list.append(name)
+
+        html(view._make_html(), height=500, width=800)
+        return name_list
+    
+
+
     
 
     def _residue_parser(self, pdbfile):

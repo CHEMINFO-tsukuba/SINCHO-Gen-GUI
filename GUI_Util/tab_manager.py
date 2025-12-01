@@ -5,7 +5,6 @@ import tempfile
 import io
 from Bio.PDB import PDBParser
 from fractions import Fraction
-from stmol import showmol
 import py3Dmol
 from streamlit.components.v1 import html
 
@@ -39,17 +38,11 @@ import base64
 
 def init_tabs():
 
-    
-
     # 初期化
     if "main_tab" not in st.session_state:
         st.session_state["main_tab"] = "Home"
 
     main_tab = st.session_state["main_tab"]
-
-    
-
-
 
     # 階層2：Details
     if main_tab == "Home":
@@ -90,7 +83,7 @@ def init_tabs():
         except Exception as e:
             st.sidebar.image(os.path.join(os.path.dirname(__file__), main_tab + ".png"), use_column_width=True)
         sub_tab = st.sidebar.radio("Details", [
-            "General", "Upload Complex", "Select Hit Ligand", "MD Settings",
+            "General", "Initial Upload", "Hit Residue Selection", "MD Settings",
             "SINCHO Settings", "ChemTS Settings", "AAScore Settings", "Summary"
         ])
     elif main_tab == "Output":

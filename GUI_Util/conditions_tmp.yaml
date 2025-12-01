@@ -78,6 +78,7 @@ SINCHO:
   npairs_per_snap   : __SINCHO_NPAIRS_PER_SNAP__
   output_method     : {"score_sort_evenly": __SINCHO_FOR_CHEMTS__}
   # output_method     : {"score_sort_evenly": 2}
+  restrict_rpoints  : __SINCHO_RESTRICT_RPOINTS__
 
 
 
