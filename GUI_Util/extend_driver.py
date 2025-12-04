@@ -69,7 +69,6 @@ if __name__ == '__main__':
     #### 01 Conformational Sampling using MD Simulation ####
     logger.info('01-Conformational Sampling Started')
     out_log_file = os.path.join(logs_dir, 'MD.log')
-    """
     with open(out_log_file, 'w') as stdout_f:
         subprocess.run(['python', '/MD-AUTOMATION/md_perform.py', config_file], stdout=stdout_f, stderr=stdout_f)
     ########################################################
@@ -81,7 +80,6 @@ if __name__ == '__main__':
     with open(out_log_file, 'w') as stdout_f:
         subprocess.run(['python', '/MD-AUTOMATION/p2c_sincho_parallel.py', config_file], stdout=stdout_f, stderr=stdout_f)
         subprocess.run(['python', '/SINCHO-H2L/yamlout.py', config_file], stdout=stdout_f, stderr=stdout_f)
-    """
     ##################################################
        
     trajectory_dirs = sorted(glob(os.path.join(sincho_out_dir, 'trajectory_*')))
@@ -89,7 +87,7 @@ if __name__ == '__main__':
     #### 03 Compound Generation using ChemTSv2 ####
     logger.info('ChemTS start.')
     generate_lead = Generate_Lead(trajectory_dirs, config)
-    #generate_lead.run()
+    generate_lead.run()
     ###############################################
     
 
