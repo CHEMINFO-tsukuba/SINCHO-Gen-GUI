@@ -10,6 +10,8 @@ from streamlit.components.v1 import html
 import yaml
 import shutil
 import glob
+import pandas as pd
+import numpy as np
 
 
 
@@ -143,6 +145,10 @@ class InputController:
             except Exception as e:
                 st.error(f"ファイルの読み込み中にエラーが発生しました: {e}")
 
+        if sub_tab == "PDB File Editor":
+            st.title("PDB File Direct Editor")
+            self._pdb_editable_board()
+            
         if sub_tab == "MD Settings":
             st.title("Molecular Dynamics Simulation Settings")
 
@@ -482,14 +488,6 @@ class InputController:
                     st.code(f"python extend_driver.py {yaml_file.split('/')[-1]}")
 
 
-        
-
-
-
-
-
-
-
 
     def _pdb_3dview(self, pdbfile, zoomres = None):
         #PDBファイルを3次元表示
@@ -540,8 +538,36 @@ class InputController:
         html(view._make_html(), height=500, width=800)
         return name_list
     
+    def _pdb_3dview_multires(self, resseq=list):
+        #PDBファイルを3次元表示
+        pdb_str = st.session_state.uploaded_pdb_file.getvalue().decode("utf-8")
+        view = py3Dmol.view(height=500, width=800)
+        view.addModel(pdb_str, "pdb", {"keepH": True})
+        view.setStyle({'hetflag': False}, {"cartoon": {"color": "gray"}})
+        view.zoomTo()
 
-
+        for r in resseq:
+            xyz = []
+            xyz = [[float(line[30:38]),float(line[38:46]),float(line[46:54])] for line in pdb_str.splitlines() if (line[22:26].strip() == str(r) and (line.startswith("ATOM  ") or line.startswith("HETATM")))] 
+            x = sum([i[0] for i in xyz])/len(xyz)
+            y = sum([i[1] for i in xyz])/len(xyz)
+            z = sum([i[2] for i in xyz])/len(xyz)
+            view.setStyle({'resi': r}, {"stick":{"colorscheme": "greenCarbon"}, "hydrogens": True})
+            view.addLabel(r, {
+                    "position": {"x": x, "y": y, "z": z},
+                    "fontColor": "black",
+                    "backgroundColor": "white",
+                    "fontSize": 15,
+                    "inFront": True
+                })
+        wrapped_html = f"""
+            <div style="width:100%; height:100%; overflow:hidden;">
+                {view._make_html()}
+            </div>
+            """
+        #html(view._make_html(), height=500, scrolling=True)
+        html(wrapped_html, height=500, scrolling=True)
+        return 
     
 
     def _residue_parser(self, pdbfile):
@@ -557,6 +583,359 @@ class InputController:
             for residue in chain
         ]
         return reslist
+
+
+    def _pdb_editable_board(self):
+        st.markdown("### 🧬 PDB Structure Refinement / Editing Panel")
+        # ============================================
+        # Load and parse PDB text
+        # ============================================
+
+        #
+        if st.session_state.edited_pdb_content is None:
+            pdb_str = st.session_state.uploaded_pdb_file.getvalue().decode("utf-8")
+        else:
+            pdb_str = st.session_state.edited_pdb_content.getvalue().decode("utf-8")
+        ligand_resname = st.session_state.hit_residue.split(" ")[0]  # ex) "LIG"
+
+        df, other_lines = self._parse_pdb(pdb_str)
+        st.divider()
+
+        replaces_dict_cys, replaces_dict_his, replaces_dict_liganame = {}, {}, {}
+
+        # ============================================
+        # 1. Cysteine State Handling
+        with st.expander("Cysteine definition (CYS / CYX / CYM)", expanded=True):
+            cys_like = df[df["resname"].str.strip().isin(["CYS", "CYX", "CYM"])]
+
+            if cys_like.empty:
+                st.info("No cysteine-type residues (CYS/CYX/CYM) found.")
+            else:
+                # 残基リスト（重複なし）
+                cys_res = (
+                    cys_like[["chain", "resname", "resseq", "icode"]]
+                    .drop_duplicates()
+                    .sort_values(["chain", "resseq", "icode"]))
+
+                # 3D可視化：対象残基をハイライト表示
+                # （ここは既存の関数に残基番号一覧を渡すだけでOK）
+                self._pdb_3dview_multires(cys_res["resseq"].tolist())
+
+                st.markdown("#### Cysteine state per residue")
+                st.write('you specify the cysteine states')
+                st.write('SH State->"CYS", S-S State->"CYX", S- State->"CYM"')
+
+                # GUI で CYS/CYX/CYM を選択させる
+                state_map = {}
+                for _, r in cys_res.iterrows():
+                    chain = r["chain"]
+                    resseq = r["resseq"]
+                    icode = r["icode"]
+                    current = r["resname"].strip()  # CYS/CYX/CYM
+                    resid_label = f"Chain {chain}, Residue {resseq}{icode.strip() or ''} ({current})"
+                    options = ["CYS", "CYX", "CYM"]
+                    default_idx = options.index(current) if current in options else 0
+
+                    selected = st.selectbox(
+                        resid_label,
+                        options=options,
+                        index=default_idx,
+                        key=f"cys_state_{chain}_{resseq}_{icode}")
+                    # キー: (chain, resseq, icode) → 値: 選択されたstate
+                    state_map[(current, chain, resseq, icode)] = selected
+
+                for (orig, chain, resseq, icode), new_state in state_map.items():
+                    if orig != new_state:
+                        replaces_dict_cys[f"{orig} {chain}{str(resseq).rjust(4)}"] = f"{new_state} {chain}{str(resseq).rjust(4)}"
+        st.divider()
+        # ============================================
+        # 2. Histidine Protonation (HID/HIE/HIP)
+        with st.expander("2. Histidine protonation (HID / HIE / HIP)", expanded=False):
+            his_like = df[df["resname"].str.strip().isin(["HIS", "HID", "HIE", "HIP"])]
+
+            if his_like.empty:
+                st.info("No histidine-type residues (HIS/HID/HIE/HIP) found.")
+            else:
+                his_res = (
+                    his_like[["chain", "resname", "resseq", "icode"]]
+                    .drop_duplicates()
+                    .sort_values(["chain", "resseq", "icode"]))
+
+                # 3D可視化：対象残基をハイライト表示
+                # （ここは既存の関数に残基番号一覧を渡すだけでOK）
+                self._pdb_3dview_multires(his_res["resseq"].tolist())
+
+                st.markdown("#### Histidine state per residue")
+                st.write('you specify the histidine states')
+                st.write('δ State->"HID", ε State->"HIE", Protonated State->"HIP"')
+
+                state_map = {}
+                for _, r in his_res.iterrows():
+                    chain = r["chain"]
+                    resseq = r["resseq"]
+                    icode = r["icode"]
+                    current = r["resname"].strip()  # CYS/CYX/CYM
+                    resid_label = f"Chain {chain}, Residue {resseq}{icode.strip() or ''} ({current})"
+                    options = ["HIS", "HID", "HIE", "HIP"]
+                    default_idx = options.index(current) if current in options else 0
+
+                    selected = st.selectbox(
+                        resid_label,
+                        options=options,
+                        index=default_idx,
+                        key=f"his_state_{chain}_{resseq}_{icode}")
+                    # キー: (chain, resseq, icode) → 値: 選択されたstate
+                    state_map[(current, chain, resseq, icode)] = selected
+                for (orig, chain, resseq, icode), new_state in state_map.items():
+                    if orig != new_state:
+                        replaces_dict_his[f"{orig} {chain}{str(resseq).rjust(4)}"] = f"{new_state} {chain}{str(resseq).rjust(4)}"
+        st.divider()
+        # ============================================
+        # 3. ACE / NME capping residue validation
+        with st.expander("5. Capping residues (ACE / NME)", expanded=False):
+            replaces_dict_cap, delete_list = self._check_capping(df)
+        st.divider()
+        # ============================================
+        # 4. Ligand atom name duplication check
+        with st.expander("4. Ligand atom name duplication check", expanded=False):
+            dup = self._check_dup_atom_names(df, ligand_resname)
+            if dup.empty:
+                st.success("✔ No duplicated atom names detected.")
+            else:
+                
+                st.error("❗Atom name duplication detected in the ligand:")
+                st.write("Current")
+                st.dataframe(dup)
+                st.warning("Refine the atom names in the table below (within 4 characters)")
+                df = st.data_editor(dup, use_container_width=True, key="atom_editor")
+
+                # replace dict
+                for (idx_bef, bef), (idx_aft, aft) in zip(dup.iterrows(), df.iterrows()):
+                    if bef["name"] != aft["name"]:
+                        b = f'{bef["serial"]} {bef["name"].strip().rjust(4)}'
+                        a = f'{aft["serial"]} {aft["name"].strip().rjust(4)}'
+                        replaces_dict_liganame[b] = a
+        st.divider()
+
+
+        # ============================================
+        """
+        # 5. Selection of A/B terminal residues (XXXA / XXXB) Not Yet Implemented
+        with st.expander("3. A / B chain residue selection (terminal variants)", expanded=False):
+            # TODO: 実装例: residue options
+            st.info("Select A/B variants (coming soon).")
+        st.divider()
+        """
+        # ============================================
+
+        # ============================================
+        # 6. Output final edited PDB
+        # ============================================
+        #replaces群をpdbファイルに置換させる
+        bef_pdb = pdb_str.splitlines()
+        for reps in [replaces_dict_cys, replaces_dict_his, replaces_dict_cap, replaces_dict_liganame]:
+            for rep_b, rep_a in reps.items():
+                # rep_b: 置換前の文字列、rep_a: 置換後の文字列でsplitlinesごとに置換
+                for i, line in enumerate(bef_pdb):
+                    if rep_b in line:
+                        bef_pdb[i] = line.replace(rep_b, rep_a)
+        for i, line in enumerate(bef_pdb):
+            for del_str in delete_list:
+                if del_str in line:
+                    bef_pdb[i] = ""
+        bef_pdb = [line for line in bef_pdb if line != ""]  # 空行削除
+        #新しいpdbファイルとして保存
+        pdb_str_edited = "\n".join(bef_pdb)
+        #このままpdbファイルとして保存する
+
+        st.button("Apply Revisions and Generate Edited PDB", key="apply_pdb_edits")
+        if st.session_state.get("apply_pdb_edits"):
+            tmp_path = os.path.join(st.session_state.general_settings["tmp_dir"], "edited_input.pdb")
+            with open(tmp_path, "w") as f:
+                f.write(pdb_str_edited)
+            st.success(f"Edited PDB file has been generated and saved to {tmp_path}.")
+            edited_pdb_bytes = pdb_str_edited.encode("utf-8")
+            buf = io.BytesIO(edited_pdb_bytes)
+            buf.name = "edited_input.pdb"
+            st.session_state.edited_pdb_content = buf
+            st.session_state.uploaded_pdb_file = st.session_state.edited_pdb_content
+
+        """
+        st.download_button(
+            "⬇ Download edited PDB",
+            data=pdb_str_edited,
+            file_name="edited2.pdb",
+            mime="chemical/x-pdb"
+        )
+        """
+
+
+
+    # ================================
+    # 1. PDBパース & 再構築
+    # ================================
+    def _parse_pdb(self, pdb_text: str):
+        """
+        PDB文字列を Atom/HETATM の DataFrame と その他行のlist に分解
+        """
+        lines = pdb_text.splitlines()
+        atom_records = []
+        other_lines = []
+
+        for line in lines:
+            if line.startswith(("ATOM  ", "HETATM")) and len(line) >= 54:
+                atom_records.append({
+                    "record": line[0:6],               # "ATOM  " / "HETATM"
+                    "serial": int(line[6:11]),
+                    "name": line[12:16],               # そのまま保持（stripは表示側で）
+                    "altloc": line[16],
+                    "resname": line[17:20],
+                    "chain": line[21],
+                    "resseq": int(line[22:26]),
+                    "icode": line[26],
+                    "x": float(line[30:38]),
+                    "y": float(line[38:46]),
+                    "z": float(line[46:54]),
+                    "occupancy": line[54:60],
+                    "tempfactor": line[60:66],
+                    "segment": line[72:76] if len(line) >= 76 else "    ",
+                    "element": line[76:78] if len(line) >= 78 else "  ",
+                    "charge": line[78:80] if len(line) >= 80 else "  ",
+                })
+            else:
+                other_lines.append(line)
+
+        df = pd.DataFrame(atom_records)
+        return df, other_lines
+
+
+    def _rebuild_pdb(self, df: pd.DataFrame, other_lines):
+        """
+        DataFrame + その他行 から PDB文字列を再構築
+        """
+        atom_lines = []
+        # 並び順は適当に record→chain→resseq→serial
+        for _, r in df.sort_values(["record", "chain", "resseq", "serial"]).iterrows():
+            line = (
+                f"{str(r['record']):6s}"
+                f"{int(r['serial']):5d} "
+                f"{str(r['name']):<4s}"
+                f"{str(r['altloc']):1s}"
+                f"{str(r['resname']):>3s} "
+                f"{str(r['chain']):1s}"
+                f"{int(r['resseq']):4d}"
+                f"{str(r['icode']):1s}   "
+                f"{float(r['x']):8.3f}"
+                f"{float(r['y']):8.3f}"
+                f"{float(r['z']):8.3f}"
+                f"{str(r['occupancy']):>6s}"
+                f"{str(r['tempfactor']):>6s}      "
+                f"{str(r['element']):>2s}"
+                f"{str(r['charge']):>2s}"
+            )
+            atom_lines.append(line)
+
+        # ENDが既にother_linesに含まれていても、最後にも付けてしまう簡易実装
+        all_lines = other_lines + atom_lines + ["END"]
+        return "\n".join(all_lines)
+
+    # ================================
+    # 4. リガンドAtomName重複チェック
+    # ================================
+    def _check_dup_atom_names(self, df: pd.DataFrame, lig_resname: str):
+        """
+        指定リガンド(resname)について、同一残基内でAtomNameが重複しているものを返す。
+        戻り値: 重複行だけのDataFrame（なければ空DataFrame）
+        """
+        lig_mask = df["resname"].str.strip() == lig_resname.strip()
+        lig_df = df[lig_mask].copy()
+        if lig_df.empty:
+            # 空のDataFrameを返す
+            return lig_df
+
+        # 同一残基( chain, resseq, icode ) 内での重複をチェック
+        dup_rows = []
+
+        for (chain, resseq, icode), sub in lig_df.groupby(["chain", "resseq", "icode"]):
+            # atom nameで重複
+            duplicated = sub[sub.duplicated(subset=["name"], keep=False)]
+            if not duplicated.empty:
+                dup_rows.append(duplicated)
+
+        if dup_rows:
+            return pd.concat(dup_rows, axis=0)
+        else:
+            return lig_df.iloc[0:0]  # 空DataFrame
+
+
+    # ================================
+    # 5. ACE / NME capping 残基チェック
+    # ================================
+    ############################## 一旦Maestro形式の入力を想定してつくるよ ################################
+    def _check_capping(self, df: pd.DataFrame):
+        #最後に文字列置き換えをするための辞書
+        replaces_dict = {}
+        delete_list = []
+
+        #NMAエラーチェッカー
+        if "NMA" in df["resname"].values:
+            st.write("NME residue is named as NMA in the PDB file. This needs to rename to 'NME' ")
+            replaces_dict["NMA"]="NME"
+
+        #ACE原子ラベルチェッカー
+        #dfから"resname"=="ACE"の原子行を抜き出したい
+        ace_atomnames = df[df["resname"].str.strip() == "ACE"]["name"].tolist()
+        maestro_to_amber_ace = {"1H   ACE":"HH31 ACE", "2H   ACE":"HH32 ACE", "3H   ACE":"HH33 ACE"}
+        for name in ace_atomnames:
+            for k,v in maestro_to_amber_ace.items():
+                if name.strip() in k:
+                    replaces_dict[k]=v
+                    st.write(f"ACE atom name '{name.strip()}' needs to be renamed to '{v}'")
+                    break
+        #ACEの次の残基のH1チェッカー
+        ace_resids = df[df["resname"].str.strip() == "ACE"][["chain", "resseq", "icode"]].drop_duplicates()
+        for _, r in ace_resids.iterrows():
+            chain, resseq, icode = r["chain"], r["resseq"], r["icode"]
+            next_res_mask = (
+                (df["chain"] == chain) &
+                (df["resseq"] == resseq + 1) &
+                (df["icode"] == icode)
+            )
+            next_res_df = df[next_res_mask]
+            if not next_res_df.empty:
+                next_res_h1 = next_res_df[next_res_df["name"].str.strip() == "H1"]
+                if not next_res_h1.empty:
+                    resname = next_res_df.iloc[0]["resname"].strip()
+                    st.write(f"The H1 atom in the residue following ACE (residue {resname} {resseq + 1}) needs to be deleted to avoid duplication.")
+                    delete_list.append("H1  "+resname)
+
+        #NME原子ラベルチェッカー("NME" or "NMA")
+        nme_atomnames = df[df["resname"].str.strip().isin(["NME", "NMA"])]["name"].tolist()
+        #minicondaの実装ではCH3、
+        maestro_to_amber_nme = {" CA  NME":" CH3 NME", "1HA  NME":"HH31 NME", "2HA  NME":"HH32 NME", "3HA  NME":"HH33 NME", }
+        for name in nme_atomnames:
+            for k,v in maestro_to_amber_nme.items():
+                if name.strip() in k:
+                    replaces_dict[k]=v
+                    st.write(f"NME atom name '{name.strip()}' needs to be renamed to '{v}'")
+                    break
+    
+        return replaces_dict, delete_list
+
+
+    # ================================
+    # 汎用ユーティリティ
+    # ================================
+    def _residue_id(self, row):
+        """chain:resname:resseq(icode) のようなID文字列を作る"""
+        icode = (row.get("icode", " ") or " ").strip()
+        icode_str = icode if icode else ""
+        return f"{row['chain']}:{row['resname'].strip()}:{row['resseq']}{icode_str}"
+
+
+
+
+
 
     
 

@@ -17,6 +17,8 @@ def init():
         st.session_state.residues_list = []
     if "hit_residue" not in st.session_state:
         st.session_state.hit_residue = None
+    if "edited_pdb_content" not in st.session_state:
+        st.session_state.edited_pdb_content = None
     if "md_settings" not in st.session_state:
         st.session_state.md_settings = {}
     if "p2c_sincho_settings" not in st.session_state:
