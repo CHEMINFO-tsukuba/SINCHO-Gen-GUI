@@ -1,0 +1,10 @@
+[theme]
+base="light"
+primaryColor="#88b04b"           # ボタンや選択タブ
+backgroundColor="#f8f8f4"        # 全体背景
+secondaryBackgroundColor="#f2f2e9"  # カードやパネル
+textColor="#333333"              # 濃いめのグレー
+font="sans serif"
+
+
+
