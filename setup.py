@@ -3,7 +3,7 @@ from setuptools import setup
 setup(name="sincho-gen-gui",
       version="0.1.0",
       packages=["GUI_Util", "env"],
-      py_modules=["main", "gui_controller"],
+      py_modules=["main", "gui_controller", "extend_driver"],
       entry_points={
           "console_scripts":[
               "sincho-gen-gui = main:main"
