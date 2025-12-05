@@ -601,7 +601,7 @@ class InputController:
         df, other_lines = self._parse_pdb(pdb_str)
         st.divider()
 
-        replaces_dict_cys, replaces_dict_his, replaces_dict_liganame = {}, {}, {}
+        replaces_dict_cys, replaces_dict_his, replaces_dict_liganame, replaces_dict_protonated = {}, {}, {}, {}
 
         # ============================================
         # 1. Cysteine State Handling
@@ -650,6 +650,7 @@ class InputController:
         st.divider()
         # ============================================
         # 2. Histidine Protonation (HID/HIE/HIP)
+        """
         with st.expander("2. Histidine protonation (HID / HIE / HIP)", expanded=False):
             his_like = df[df["resname"].str.strip().isin(["HIS", "HID", "HIE", "HIP"])]
 
@@ -690,6 +691,57 @@ class InputController:
                     if orig != new_state:
                         replaces_dict_his[f"{orig} {chain}{str(resseq).rjust(4)}"] = f"{new_state} {chain}{str(resseq).rjust(4)}"
         st.divider()
+        """
+
+        # ============================================
+        # other residues with protonated states
+        with st.expander("Other residues with protonated states", expanded=False):
+            st.info("ASP or ASH")
+            asp_like = df[df["resname"].str.strip().isin(["ASP"])]
+            #aspの残基情報(["chain"], ["resseq"])の一覧を取得
+            chain_resseq_unique = asp_like.drop_duplicates(subset=["chain", "resseq"])
+            for _, r in chain_resseq_unique.iterrows():
+                chain = r["chain"]
+                resseq = r["resseq"]
+                #chainとresseqでフィルタリングして、その残基の原子名一覧を取得し、"HD2"があればst.write()で表示
+                atom_names = asp_like[(asp_like["chain"] == chain) & (asp_like["resseq"] == resseq)]["name"].tolist()
+                if "HD2" in [ an.strip() for an in atom_names]:
+                    replaces_dict_protonated[f"ASP {chain}{str(resseq).rjust(4)}"] = f"ASH {chain}{str(resseq).rjust(4)}"
+                    st.write(f"Residue ASP {chain}{resseq} is protonated to ASH.")
+            st.info("GLU or GLH")
+            glu_like = df[df["resname"].str.strip().isin(["GLU"])]
+            #gluの残基情報(["chain"], ["resseq"])の一覧を取得
+            chain_resseq_unique = glu_like.drop_duplicates(subset=["chain", "resseq"])
+            for _, r in chain_resseq_unique.iterrows():
+                chain = r["chain"]
+                resseq = r["resseq"]
+                #chainとresseqでフィルタリングして、その残基の原子名一覧を取得し、"HE2"があればst.write()で表示
+                atom_names = glu_like[(glu_like["chain"] == chain) & (glu_like["resseq"] == resseq)]["name"].tolist()
+                if "HE2" in [ an.strip() for an in atom_names]:
+                    replaces_dict_protonated[f"GLU {chain}{str(resseq).rjust(4)}"] = f"GLH {chain}{str(resseq).rjust(4)}"
+                    st.write(f"Residue GLU {chain}{resseq} is protonated to GLH.")
+
+            st.info("HID or HIE or HIP")
+            his_like = df[df["resname"].str.strip().isin(["HIS"])]
+            #aspの残基情報(["chain"], ["resseq"])の一覧を取得
+            chain_resseq_unique = his_like.drop_duplicates(subset=["chain", "resseq"])
+            for _, r in chain_resseq_unique.iterrows():
+                chain = r["chain"]
+                resseq = r["resseq"]
+                #chainとresseqでフィルタリングして、その残基の原子名一覧を取得し、"HD2"があればst.write()で表示
+                atom_names = his_like[(his_like["chain"] == chain) & (his_like["resseq"] == resseq)]["name"].tolist()
+                atom_names = [an.strip() for an in atom_names]
+                if "HD2" in atom_names and "HE2" in atom_names:
+                    replaces_dict_protonated[f"HIS {chain}{str(resseq).rjust(4)}"] = f"HIP {chain}{str(resseq).rjust(4)}"
+                    st.write(f"Residue HIS {chain}{resseq} is protonated to HIP.")
+                elif "HD2" in atom_names and "HE2" not in atom_names:
+                    replaces_dict_protonated[f"HIS {chain}{str(resseq).rjust(4)}"] = f"HID {chain}{str(resseq).rjust(4)}"
+                    st.write(f"Residue HIS {chain}{resseq} is protonated to HID.")
+                elif "HD2" not in atom_names and "HE2" in atom_names:
+                    replaces_dict_protonated[f"HIS {chain}{str(resseq).rjust(4)}"] = f"HIE {chain}{str(resseq).rjust(4)}"
+                    st.write(f"Residue HIS {chain}{resseq} is protonated to HIE.")
+
+
         # ============================================
         # 3. ACE / NME capping residue validation
         with st.expander("5. Capping residues (ACE / NME)", expanded=False):
@@ -717,6 +769,9 @@ class InputController:
                         replaces_dict_liganame[b] = a
         st.divider()
 
+        delete_list.append("CONECT")#CONECT行があると金属がBonded扱いになって煩雑になるので。
+
+
 
         # ============================================
         """
@@ -733,7 +788,7 @@ class InputController:
         # ============================================
         #replaces群をpdbファイルに置換させる
         bef_pdb = pdb_str.splitlines()
-        for reps in [replaces_dict_cys, replaces_dict_his, replaces_dict_cap, replaces_dict_liganame]:
+        for reps in [replaces_dict_cys, replaces_dict_his, replaces_dict_protonated, replaces_dict_cap, replaces_dict_liganame]:
             for rep_b, rep_a in reps.items():
                 # rep_b: 置換前の文字列、rep_a: 置換後の文字列でsplitlinesごとに置換
                 for i, line in enumerate(bef_pdb):
