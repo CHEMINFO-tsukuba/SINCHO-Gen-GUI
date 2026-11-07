@@ -1,0 +1,239 @@
+###inputs (will add these conditions)###
+
+GENERAL:
+  use_num_threads: &threads __NUM_THREADS__
+  random_seed: __RANDOM_SEED__
+
+OUTPUT:
+  directory : __OUTDIR__
+  logs_dir : 00_Logs/
+
+
+MD:
+  working_directory   : &md_wdir 01_ConfSamp/
+
+  ##################################################
+  ###入力構造に求められる条件###
+  ###タンパク質とヒット化合物の複合体構造
+  ###タンパク質の残基名をプロトン化状態によって変更する
+  ###ex. HIS->HIE/HID/HIP
+  ###タンパク質disorderがある場合は、マニュアルで残基補完orキャッピングする
+  ###ヒット化合物および非タンパク質残基は水素付加された構造とする
+  ###ヒット化合物の原子名はユニークなものに設定する
+  ###イオンが配位している場合は、該当のCONECT行を削除する(本手法ではNon-bonded Modelを採用するため)
+  ##################################################
+  preparation:
+    complex_name    : &complex_name __INPUT_COMPLEX__
+    ligand_resname  : __HIT_RESNAME__
+    other_necessary_residue : 
+      #- SAH
+      #- ATP
+      #if necessary, specify other comps (ex.SAH, ATP, etc.)
+    charge_method : __CHARGE_METHOD__
+    #select charge methods of compound
+    #you can select from gas/bcc/...
+    number_of_cpus: *threads
+  
+  tleap:
+    checks : true
+    #if true-> perform only tleap and check whether tleap is OK or NOT.
+    box : __BOX_SHAPE__
+    #you can select either "rectangular" or "cube"
+    rect_around_box : __BUFFER__
+    #if you select "box : rectangular", specify the minimum distance from solute
+    cube_size : __BOX_SIZE__
+    #if you select "box : cube", specify the length of box
+    translate_origin : true
+    #select true or false (do you want to translate the centroid of protein for (x,y,z)=(0,0,0)?)
+    ff_protein : __FORCE_FIELD_PROTEIN__
+    ff_ligand  : __FORCE_FIELD_LIGAND__
+    ff_water   : __FORCE_FIELD_WATER__
+    ligand_parameter:
+__LIGAND_PARAMETERS__
+    #if you prepare lig.prep and lig.frcmod for accurate parameter use.
+    additional_ff_parameter: 
+      - frcmod.ions234lm_1264_tip3p
+
+  production:
+    runtime         : __PRODUCTION_RUNTIME__ #ps-order 
+    timestep        : 0.002 #ps-order
+    output-interval : __PRODUCTION_REC_INTERVAL__   #ps-order
+    velocity generation : false
+
+  edit_trajectory:
+    start-range : 0 #ps-order
+    end-range : __PRODUCTION_RUNTIME__ #ps-order
+    necessary-snaps : &num_of_snap __SNAPSHOTS__ #number [ necessary-snaps <= (end-start)/interval ]
+
+  mv:
+    input_complex:
+      - *complex_name
+      - *md_wdir
+
+SINCHO:
+  working_directory : &SINCHO_wdir 02_MakeDec/
+  num_of_parallel   : *num_of_snap
+  distance_range    : __SINCHO_DISTANCE_RANGE__
+  npairs_per_snap   : __SINCHO_NPAIRS_PER_SNAP__
+  output_method     : {"score_sort_evenly": __SINCHO_FOR_CHEMTS__}
+  # output_method     : {"score_sort_evenly": 2}
+
+  # if you restrict R-point candidates among all heavy atoms in ligand, you specify atom-names in this option. 
+  restrict_rpoints  : __SINCHO_RESTRICT_RPOINTS__
+
+
+ChemTS:
+  working_directory : &chemts_wdir 03_CompGen/
+  prefix: ChemTS
+  # num_chemts_pickups: 10
+  
+  num_chemts_loops: __CHEMTS_NUM_LOOPS__ #指定した数字の回数ChemTSを実行する
+  num_parallel: __CHEMTS_NUM_PARALLEL__
+
+  # Basic setting
+  c_val: __CHEMTS_C_VAL__
+  # threshold_type: [time, generation_num]
+  threshold_type: __CHEMTS_THRESHOLD_TYPE__
+  # threshold_type: generation_num
+  hours: __CHEMTS_HOURS__
+  generation_num: __CHEMTS_GENERATION_NUM__
+    
+  #expansion_threshold: 0.995
+  expansion_threshold: 0.999
+  simulation_num: 5
+
+  # Advanced setting
+  expansion_threshold: 0.995
+  simulation_num: 5
+  flush_threshold: -1
+  policy_setting: 
+    policy_module: policy.ucb1
+    policy_class: Ucb1
+
+  # Restart setting
+  save_checkpoint: False
+  restart: False
+  checkpoint_file: chemtsv2.ckpt.pkl
+
+  # Filter setting
+  use_lipinski_filter: False
+  lipinski_filter:
+    module: filter.lipinski_filter
+    class: LipinskiFilter
+    type: rule_of_5
+    # type: rule_of_3
+  use_radical_filter: True
+  radical_filter:
+    module: filter.radical_filter
+    class: RadicalFilter
+  # use_hashimoto_filter: True
+  # hashimoto_filter:
+  #   module: filter.hashimoto_filter
+  #   class: HashimotoFilter
+  use_pubchem_filter: False
+  pubchem_filter:
+    module: filter.pubchem_filter
+    class: PubchemFilter
+  use_sascore_filter: True 
+  sascore_filter:
+    module: filter.sascore_filter
+    class: SascoreFilter
+    threshold: 3.5
+  use_ring_size_filter: False
+  ring_size_filter:
+    module: filter.ring_size_filter
+    class: RingSizeFilter
+    threshold: 6
+  use_pains_filter: False
+  pains_filter:
+    module: filter.pains_filter
+    class: PainsFilter
+    type: [pains_a]
+  use_donor_acceptor_filter: True
+  donor_acceptor_filter: 
+    module: filter.donor_acceptor_filter
+    class: Donor_Acceptor
+  include_filter_result_in_reward: False
+  use_QED_filter: True
+  QED_filter:
+    module: filter.qed_filter
+    class: QEDFilter
+    type: none # max or mean or none
+    threshold: 0.6 #0~1
+  include_filter_result_in_reward: False
+
+  reward_setting: 
+    reward_module: reward.mw_logp_reward
+    reward_class: MW_LogP_reward
+    #reward_module: reward.cns_reward
+    #reward_class: CNS_reward
+    #consider_sincho: True
+  # output_dirはSINCHO-Gen側でrankごとに設定されます。
+  out_log_file_name: ChemTS.log
+
+
+  Dscore_parameters: 
+    ## MW_LogP
+    # muをSINCHOの結果から取得する
+    SINCHO_MW: {type: trapezoid, top_range_left: 30, top_range_right: 30, bottom_range_left: 80, bottom_range_right: 80, weight: 1}
+    SINCHO_LogP: {type: trapezoid, top_range_left: 2, top_range_right: 2, bottom_range_left: 5, bottom_range_right: 5, weight: 1}
+    
+    # ## CNS
+    #SINCHO_MW: {type: trapezoid, top_range_left: 50, top_range_right: 50, bottom_range_left: 100, bottom_range_right: 100, weight: 1}
+    #SINCHO_LogP: {type: trapezoid, top_range_left: 1, top_range_right: 1, bottom_range_left: 2, bottom_range_right: 2, weight: 1}
+    #MW: {type: trapezoid, bottom_min: 0, top_min: 0, top_max: 400,  bottom_max: 450, weight: 1}
+    #TPSA: {type: trapezoid, bottom_min: 0, top_min: 0,  top_max: 80, bottom_max: 100, weight: 1}
+    #sum_HBD_HBA: {type: trapezoid, bottom_min: 6, top_min: 8, top_max: 10, bottom_max: 12, weight: 1}
+    #LogD: {type: trapezoid, bottom_min: 6, top_min: 8, top_max: 10, bottom_max: 12, weight: 0}
+    #mol_shape: {type: trapezoid, bottom_min: 6, top_min: 8, top_max: 10, bottom_max: 12, weight: 0}
+
+  model_setting:
+    use_weight_model: __USE_WEIGHT_MODEL__
+    model_json: __MODEL_JSON__
+    model_weight: __MODEL_WEIGHT__
+  token: __MODEL_TOKEN__
+  
+
+AAScore:
+  working_directory : 04_DeltaGEst/
+  OUTPUT:
+    directory : aascore_result
+    filename : results.txt
+    sdf_name_prefix : AAscore
+    
+  #ChemTS生成化合物のうち、どれをスコア計算するかのMethod（all:全化合物、rand:ランダム）
+  method: __AASCORE_METHOD__
+  #method: rand
+
+  #リワードカットオフする場合はここに0-1のfloatを入力。
+  #その値以上のリワードを持つ化合物のみ抽出。0の場合はすべての化合物が対象。
+  reward_cutoff: __AASCORE_REWARD_CUTOFF__
+
+  #method:randの場合のみ、抽出する化合物数を選択(int)。method:allの場合は無視。
+  num_of_cpd: __AASCORE_NUM_OF_CPD__
+
+  #１化合物あたりに生成するconformation数(int)
+  conf_per_cpd: __AASCORE_CONF_PER_CPD__
+ 
+  embed_details:
+    max_attempts: __AASCORE_MAX_ATTEMPTS__
+    rms_thresh: __AASCORE_RMS_THRESH__
+    random_seed: __RANDOM_SEED__
+
+  #conformationのエネルギー最小化するときのthreshold(float??)
+  #conf_minimize_threshold:
+  #  total_num: 20
+  #  energyTol: 0.0001
+  #  forceTol: 0.001
+    
+  #似たconformationを除外するときのRMSDthreshold(float)
+  #conf_rmsd_threshold: 0.5
+
+  #prot.pdbからスコア計算用タンパク質ファイルを作成する時に抽出してくる残基の範囲(float, Å-scale)
+  protein_range: __AASCORE_PROTEIN_RANGE__
+
+  #並列化数(int)
+  parallel_num: *threads
+
+  #最終的な出力sdfの数。(これで指定する明示的な出力ファイルの他に、スコア計算されたすべての化合物のスコアソート３次元構造をまとめたsdfも裏で出力しておきたい)
+  output_num: __AASCORE_OUTPUT_NUM__

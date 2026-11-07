@@ -1,0 +1,11 @@
+build/
+dist/
+*.egg-info/
+__pycache__/
+*.pyc
+.streamlit/
+output/
+*.yaml
+!GUI_Util/conditions_tmp.yaml
+GUI_Util/__pycache__/
+/push/
