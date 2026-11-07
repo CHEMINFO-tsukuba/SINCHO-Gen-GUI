@@ -13,8 +13,8 @@ if [ -n "${SINCHO_GEN_GPU:-}" ]; then
 fi
 
 if docker ps -a --format '{{.Names}}' | grep -q "^${name}$"; then
-  echo "[ERROR] 同名コンテナが存在します: ${name}" >&2
-  echo "docker rm -f ${name} を実行してから再試行してください。" >&2
+  echo "[ERROR] A container with this name already exists: ${name}" >&2
+  echo "Run docker rm -f ${name}, then try again." >&2
   exit 1
 fi
 
@@ -28,4 +28,4 @@ docker run -d \
   "${image}"
 
 echo "SINCHO-Gen-GUI: http://localhost:${port}"
-echo "ログ確認: docker logs -f ${name}"
+echo "View logs: docker logs -f ${name}"

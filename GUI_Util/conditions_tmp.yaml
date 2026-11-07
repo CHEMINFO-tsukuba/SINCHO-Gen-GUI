@@ -13,14 +13,14 @@ MD:
   working_directory   : &md_wdir 01_ConfSamp/
 
   ##################################################
-  ###入力構造に求められる条件###
-  ###タンパク質とヒット化合物の複合体構造
-  ###タンパク質の残基名をプロトン化状態によって変更する
+  # Input structure requirements
+  # Use a complex of the protein and hit ligand.
+  # Name protein residues according to their protonation states.
   ###ex. HIS->HIE/HID/HIP
-  ###タンパク質disorderがある場合は、マニュアルで残基補完orキャッピングする
-  ###ヒット化合物および非タンパク質残基は水素付加された構造とする
-  ###ヒット化合物の原子名はユニークなものに設定する
-  ###イオンが配位している場合は、該当のCONECT行を削除する(本手法ではNon-bonded Modelを採用するため)
+  # Manually complete or cap missing/disordered protein residues.
+  # Add hydrogens to the hit ligand and non-protein residues.
+  # Use unique atom names for the hit ligand.
+  # Remove CONECT records for coordinated ions (a non-bonded model is used).
   ##################################################
   preparation:
     complex_name    : &complex_name __INPUT_COMPLEX__
@@ -87,7 +87,7 @@ ChemTS:
   prefix: ChemTS
   # num_chemts_pickups: 10
   
-  num_chemts_loops: __CHEMTS_NUM_LOOPS__ #指定した数字の回数ChemTSを実行する
+  num_chemts_loops: __CHEMTS_NUM_LOOPS__ # Run ChemTS this many times.
   num_parallel: __CHEMTS_NUM_PARALLEL__
 
   # Basic setting
@@ -168,13 +168,13 @@ ChemTS:
     #reward_module: reward.cns_reward
     #reward_class: CNS_reward
     #consider_sincho: True
-  # output_dirはSINCHO-Gen側でrankごとに設定されます。
+  # output_dir is set for each rank by SINCHO-Gen.
   out_log_file_name: ChemTS.log
 
 
   Dscore_parameters: 
     ## MW_LogP
-    # muをSINCHOの結果から取得する
+    # Obtain mu from the SINCHO results.
     SINCHO_MW: {type: trapezoid, top_range_left: 30, top_range_right: 30, bottom_range_left: 80, bottom_range_right: 80, weight: 1}
     SINCHO_LogP: {type: trapezoid, top_range_left: 2, top_range_right: 2, bottom_range_left: 5, bottom_range_right: 5, weight: 1}
     
@@ -201,18 +201,18 @@ AAScore:
     filename : results.txt
     sdf_name_prefix : AAscore
     
-  #ChemTS生成化合物のうち、どれをスコア計算するかのMethod（all:全化合物、rand:ランダム）
+  # Select generated ChemTS compounds to score (all: all compounds; rand: random selection).
   method: __AASCORE_METHOD__
   #method: rand
 
-  #リワードカットオフする場合はここに0-1のfloatを入力。
-  #その値以上のリワードを持つ化合物のみ抽出。0の場合はすべての化合物が対象。
+  # Reward cutoff: a floating-point value from 0 to 1.
+  # Include only compounds at or above the cutoff; 0 includes all compounds.
   reward_cutoff: __AASCORE_REWARD_CUTOFF__
 
-  #method:randの場合のみ、抽出する化合物数を選択(int)。method:allの場合は無視。
+  # Number of compounds to select (integer); used only with method: rand and ignored with method: all.
   num_of_cpd: __AASCORE_NUM_OF_CPD__
 
-  #１化合物あたりに生成するconformation数(int)
+  # Number of conformers to generate per compound (integer).
   conf_per_cpd: __AASCORE_CONF_PER_CPD__
  
   embed_details:
@@ -220,20 +220,20 @@ AAScore:
     rms_thresh: __AASCORE_RMS_THRESH__
     random_seed: __RANDOM_SEED__
 
-  #conformationのエネルギー最小化するときのthreshold(float??)
+  # Conformer energy minimization threshold.
   #conf_minimize_threshold:
   #  total_num: 20
   #  energyTol: 0.0001
   #  forceTol: 0.001
     
-  #似たconformationを除外するときのRMSDthreshold(float)
+  # RMSD threshold for excluding similar conformers (float).
   #conf_rmsd_threshold: 0.5
 
-  #prot.pdbからスコア計算用タンパク質ファイルを作成する時に抽出してくる残基の範囲(float, Å-scale)
+  # Radius for selecting residues from prot.pdb to build the scoring protein (float, Å).
   protein_range: __AASCORE_PROTEIN_RANGE__
 
-  #並列化数(int)
+  # Number of parallel workers (integer).
   parallel_num: *threads
 
-  #最終的な出力sdfの数。(これで指定する明示的な出力ファイルの他に、スコア計算されたすべての化合物のスコアソート３次元構造をまとめたsdfも裏で出力しておきたい)
+  # Number of compounds in the final SDF output. An additional SDF containing all scored 3D structures sorted by score is also desired.
   output_num: __AASCORE_OUTPUT_NUM__

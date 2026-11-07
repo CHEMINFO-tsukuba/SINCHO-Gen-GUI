@@ -31,31 +31,31 @@ class OutputController:
         if sub_tab == "General":
             WARN_FLAG = False
             st.title("General Settings")
-            st.write("出力ディレクトリを設定し、他タブで結果を可視化できるようにします。")
+            st.write("Set the output directory to visualize results in the other tabs.")
 
-            st.session_state.output_settings["output_dir"] = st.text_input("出力ディレクトリ", value="output")
+            st.session_state.output_settings["output_dir"] = st.text_input("Output directory", value="output")
             if not os.path.isdir(os.path.join(os.getcwd(), st.session_state.output_settings["output_dir"])):
-                st.warning(f"出力ディレクトリ {st.session_state.output_settings['output_dir']} が存在しません")
+                st.warning(f"Output directory {st.session_state.output_settings['output_dir']} does not exist.")
                 WARN_FLAG = True
 
-            st.session_state.output_settings["MDdir_name"] = st.text_input("MDディレクトリ名", value="01_ConfSamp")
+            st.session_state.output_settings["MDdir_name"] = st.text_input("MD directory name", value="01_ConfSamp")
             if not os.path.isdir(os.path.join(os.getcwd(), st.session_state.output_settings["output_dir"], st.session_state.output_settings["MDdir_name"])):
-                st.warning(f"ディレクトリ {st.session_state.output_settings['MDdir_name']} が存在しません")
+                st.warning(f"Directory {st.session_state.output_settings['MDdir_name']} does not exist.")
                 WARN_FLAG = True
-            st.session_state.output_settings["SINCHOdir_name"] = st.text_input("SINCHOディレクトリ名", value="02_MakeDec")
+            st.session_state.output_settings["SINCHOdir_name"] = st.text_input("SINCHO directory name", value="02_MakeDec")
             if not os.path.isdir(os.path.join(os.getcwd(), st.session_state.output_settings["output_dir"], st.session_state.output_settings["SINCHOdir_name"])):
-                st.warning(f"ディレクトリ {st.session_state.output_settings['SINCHOdir_name']} が存在しません")
+                st.warning(f"Directory {st.session_state.output_settings['SINCHOdir_name']} does not exist.")
                 WARN_FLAG = True
-            st.session_state.output_settings["ChemTSdir_name"] = st.text_input("ChemTSディレクトリ名", value="03_CompGen")
+            st.session_state.output_settings["ChemTSdir_name"] = st.text_input("ChemTS directory name", value="03_CompGen")
             if not os.path.isdir(os.path.join(os.getcwd(), st.session_state.output_settings["output_dir"], st.session_state.output_settings["ChemTSdir_name"])):
-                st.warning(f"ディレクトリ {st.session_state.output_settings['ChemTSdir_name']} が存在しません")        
+                st.warning(f"Directory {st.session_state.output_settings['ChemTSdir_name']} does not exist.")
                 WARN_FLAG = True          
-            st.session_state.output_settings["AAScoredir_name"] = st.text_input("AAScoreディレクトリ名", value="04_DeltaGEst")
+            st.session_state.output_settings["AAScoredir_name"] = st.text_input("AAScore directory name", value="04_DeltaGEst")
             if not os.path.isdir(os.path.join(os.getcwd(), st.session_state.output_settings["output_dir"], st.session_state.output_settings["AAScoredir_name"])):
-                st.warning(f"ディレクトリ {st.session_state.output_settings['AAScoredir_name']} が存在しません")
+                st.warning(f"Directory {st.session_state.output_settings['AAScoredir_name']} does not exist.")
                 WARN_FLAG = True
             if not WARN_FLAG:
-                st.success("出力ディレクトリの設定が完了しました。")
+                st.success("Output directory configuration is complete.")
 
 
         elif sub_tab == "MD":
@@ -87,7 +87,7 @@ class OutputController:
                     
 
             with hr_tabs[1]:
-                frame_id = st.slider("フレーム番号を選択", min_value=0, max_value=len(prot_pdbs)-1, value=0)
+                frame_id = st.slider("Select a frame number", min_value=0, max_value=len(prot_pdbs)-1, value=0)
 
                 view = py3Dmol.view(width=700, height=500)
                 view.addModel(open(prot_pdbs[frame_id], 'r').read(), "pdb")
@@ -129,7 +129,7 @@ class OutputController:
             sincho_df = sincho_df.sort_values(by=['trajectory_num', 'sincho_rank']).reset_index(drop=True)
             
             with hr_tabs[0]:
-                st.write("各トラジェクトリのsincho_result.yamlを読み込み、csv形式で表示します。")
+                st.write("Load sincho_result.yaml from each trajectory and display the results as a CSV table.")
                 col1, col2 = st.columns([3,1])
                 with col1:
                     st.dataframe(sincho_df, use_container_width=True)
@@ -144,7 +144,7 @@ class OutputController:
                 run_options = sincho_df.apply(
                     lambda row: f"trajectory_{row['trajectory_num']}: rank_{row['sincho_rank']}", axis=1
                 ).tolist()
-                selected_run = st.selectbox("表示するRUNを選んでください", run_options)
+                selected_run = st.selectbox("Select a run to display", run_options)
                 tra, ran = selected_run.split(": ")[0].split("_")[1], selected_run.split(": ")[1].split("_")[1]
                 sincho_row = sincho_df[(sincho_df['trajectory_num'] == tra) & (sincho_df['sincho_rank'] == ran)]
                 st.write(sincho_row)
@@ -164,13 +164,13 @@ class OutputController:
                 index+=1
             chemts_df = chemts_df.sort_values(by=['trajectory_num', 'rank_num']).reset_index(drop=True)
 
-            st.write("各SINCHO結果からのChemTS生成について、生成化合物群のプロパティを表示します。")
+            st.write("Display properties of the compounds generated by ChemTS for each SINCHO result.")
             # 選択肢を作成
             run_options = chemts_df.apply(
                 lambda row: f"{row['trajectory_num']}: {row['rank_num']}", axis=1
             ).tolist()
 
-            selected_run = st.selectbox("表示するRUNを選んでください", run_options)
+            selected_run = st.selectbox("Select a run to display", run_options)
 
             # 選んだRUNの詳細
             selected_row = chemts_df.iloc[run_options.index(selected_run)]
@@ -188,13 +188,13 @@ class OutputController:
             p_mw = sincho_result['SINCHO_result'][selected_row['rank_num']]["mw"]
             p_logp = sincho_result['SINCHO_result'][selected_row['rank_num']]["logp"]
 
-            st.write("ChemTS 計算log:")
+            st.write("ChemTS calculation log:")
             run_df = pd.read_csv( os.path.join(selected_dir, "results.csv"))
             st.dataframe(run_df, use_container_width=True, height=75)
             run_df = run_df[run_df['reward'] >= 0.0]
             
 
-            st.write("ChemTS 生成過程のプロパティTransition：")
+            st.write("Property changes during ChemTS generation:")
             
             trials = run_df['trial'].unique()
             fig, ax = plt.subplots()
@@ -217,7 +217,7 @@ class OutputController:
             st.pyplot(fig)
             col2_1, col2_2 = st.columns([1,1])
             with col2_1:
-                st.write("分子量のTransition")
+                st.write("Molecular weight over time")
                 fig, ax = plt.subplots()
                 ax.set_xlabel("generated_id")
                 ax.set_ylabel("MW")
@@ -235,7 +235,7 @@ class OutputController:
                     ax.axhline(y=p_mw, color='gray', linestyle='--')
                 st.pyplot(fig)
             with col2_2:
-                st.write("logPのTransition")
+                st.write("logP over time")
                 fig, ax = plt.subplots()
                 ax.set_xlabel("generated_id")
                 ax.set_ylabel("logP")
@@ -253,29 +253,29 @@ class OutputController:
                     ax.axhline(y=p_logp, color='gray', linestyle='--')
                 st.pyplot(fig)
 
-            #st.write(f"ChemTS 生成化合物数(reward≧0.0) … {run_df.shape[0]}")
-            #st.write(f"ChemTS 生成化合物数(reward≧1.0) … {run_df[run_df['reward']>=1.0].shape[0]}")
+            #st.write(f"ChemTS 生成Compound数(reward≧0.0) … {run_df.shape[0]}")
+            #st.write(f"ChemTS 生成Compound数(reward≧1.0) … {run_df[run_df['reward']>=1.0].shape[0]}")
 
-            #st.write("ChemTS 生成化合物のプロパティ:")
-            thresh = st.slider("reward=X以上の化合物のプロパティを表示", min_value=0.0, max_value=1.0, value=0.0, step=0.01)
+            #st.write("ChemTS 生成Compoundのプロパティ:")
+            thresh = st.slider("Show properties of compounds with reward at or above this threshold", min_value=0.0, max_value=1.0, value=0.0, step=0.01)
             col1, col2, col3 = st.columns([1,1,1])
             with col1:
                 st.write("reward")
-                #reward≧0.0の化合物のrewardのリスト
+                #reward≧0.0のCompoundのrewardのリスト
                 reward = run_df[run_df["reward"]>=thresh]['reward'].tolist()
                 min_reward = run_df['reward'].min()
                 max_reward = run_df['reward'].max()
                 self._histgram(reward, "reward", min_value=min_reward, max_value=max_reward, color="royalblue")
             with col2:
-                st.write("分子量(母核からの増分)")
-                #reward≧0.0の化合物の分子量のリスト
+                st.write("Molecular weight increase from the scaffold")
+                #reward≧0.0のCompoundの分子量のリスト
                 mw = run_df[run_df["reward"]>=thresh]['SINCHO_MW'].tolist()
                 min_mw = run_df['SINCHO_MW'].min()
                 max_mw = run_df['SINCHO_MW'].max()
                 self._histgram(mw, "MW", threshold=p_mw, color="orange", min_value=min_mw, max_value=max_mw)
             with col3:
-                st.write("logP(母核からの増分)")
-                #reward≧0.0の化合物のlogPのリスト
+                st.write("logP increase from the scaffold")
+                #reward≧0.0のCompoundのlogPのリスト
                 logp = run_df[run_df["reward"]>=thresh]['SINCHO_LogP'].tolist()
                 min_logp = run_df['SINCHO_LogP'].min()
                 max_logp = run_df['SINCHO_LogP'].max()
@@ -289,7 +289,7 @@ class OutputController:
             #highlight用の分子を取得
             trajectories = glob.glob(os.path.join(os.getcwd(), st.session_state.output_settings["output_dir"], st.session_state.output_settings["ChemTSdir_name"], "trajectory_*/rank_*"))
             if not trajectories:
-                st.warning("ChemTSのrank出力が見つかりません。")
+                st.warning("No ChemTS rank output was found.")
                 st.stop()
             trajectories = trajectories[0]
             ref_lig = os.path.join(trajectories, "run.log")
@@ -315,26 +315,26 @@ class OutputController:
                 suppl = Chem.SDMolSupplier(sdf, removeHs=False)
                 mol_indices = list(range(len(suppl)))
 
-                st.session_state.output_settings["mode"] = st.selectbox("表示モードを選択", ["Simple CSV Summary", "2D Summary", "3D View"], key="AAScore_mode")
+                st.session_state.output_settings["mode"] = st.selectbox("Select a display mode", ["Simple CSV Summary", "2D Summary", "3D View"], key="AAScore_mode")
                 if st.session_state.output_settings["mode"] == "Simple CSV Summary":
-                    st.write("スコアリング結果をCSV形式で出力します。")
+                    st.write("Display scoring results as a CSV table.")
 
                     st.dataframe(df_gen[["trajectory_num", "rank_num", "lead_num", "AAScore"]], use_container_width=True)
                 elif st.session_state.output_settings["mode"] == "2D Summary":
-                    st.write("スコアリング結果を2D形式で表示します。")
+                    st.write("Display scoring results in 2D.")
                     c1, c2 = st.columns([1, 1])
                     with c1:
                         start = st.number_input("Start index", min_value=0, max_value=df_gen.shape[0], value=0, step=1, key="start_index_gen")
                     with c2:
                         end = st.number_input("End index",min_value=start,max_value=min(start + 50, df_gen.shape[0]),value=min(start + 50, df_gen.shape[0]),step=1, key="end_index_gen")
-                    per_column = st.number_input("1行に描画する化合物数",min_value=1, max_value=50,value=5, step=1,key="per_column" )
-                    if st.button(f"選択範囲: {start} - {end}で２次元描画する", key="gen_2dview_button"):
+                    per_column = st.number_input("Number of compounds per row",min_value=1, max_value=50,value=5, step=1,key="per_column" )
+                    if st.button(f"Draw selected range in 2D: {start} - {end}", key="gen_2dview_button"):
                         img = self._summary_2Dview(suppl, int(start), int(end), states, hl_mol=ref_mol, per_column=per_column)
 
                 elif st.session_state.output_settings["mode"] == "3D View":
-                    st.write("スコアリング結果を3D形式で表示します。")
+                    st.write("Display scoring results in 3D.")
                     idx = st.number_input(
-                        "表示したい構造のインデックスを入力",
+                        "Enter the index of the structure to display",
                         min_value=min(mol_indices),
                         max_value=max(mol_indices),
                         value=0,
@@ -345,7 +345,7 @@ class OutputController:
 
                     mol = suppl[idx]
                     if mol is None:
-                        st.warning(f"{idx} 番目の分子は読み込みできませんでした。")
+                        st.warning(f"Could not load molecule at index {idx}.")
                     else:
                         trajectory_num = mol.GetProp("trajectory_num")
                         sdir = os.path.join(os.getcwd(), st.session_state.output_settings["output_dir"], st.session_state.output_settings["SINCHOdir_name"])
@@ -362,28 +362,28 @@ class OutputController:
                 suppl = Chem.SDMolSupplier(sdf, removeHs=False)
                 mol_indices = list(range(len(suppl)))
 
-                st.session_state.output_settings["mode"] = st.selectbox("表示モードを選択", ["Simple CSV Summary", "2D Summary", "3D View"], key="le_mode")
+                st.session_state.output_settings["mode"] = st.selectbox("Select a display mode", ["Simple CSV Summary", "2D Summary", "3D View"], key="le_mode")
                 if st.session_state.output_settings["mode"] == "Simple CSV Summary":
-                    st.write("スコアリング結果をCSV形式で出力します。")
+                    st.write("Display scoring results as a CSV table.")
 
                     st.dataframe(df_gen[["trajectory_num", "rank_num", "lead_num", "AAScore_LE"]], use_container_width=True)
                     #st.dataframe(df_gen[["trajectory_num", "rank_num", "lead_num", "AAScore"]], use_container_width=True)
                     
                 elif st.session_state.output_settings["mode"] == "2D Summary":
-                    st.write("スコアリング結果を2D形式で表示します。")
+                    st.write("Display scoring results in 2D.")
                     c1, c2 = st.columns([1, 1])
                     with c1:
                         start = st.number_input("Start index", min_value=0, max_value=df_gen.shape[0], value=0, step=1, key="start_index_le")
                     with c2:
                         end = st.number_input("End index",min_value=start,max_value=min(start + 50, df_gen.shape[0]),value=min(start + 50, df_gen.shape[0]),step=1, key="end_index_le")
-                    per_column = st.number_input("1行に描画する化合物数",min_value=1, max_value=50,value=5, step=1,key="per_column" )
-                    if st.button(f"選択範囲: {start} - {end}で２次元描画する", key="le_2dview_button"):
+                    per_column = st.number_input("Number of compounds per row",min_value=1, max_value=50,value=5, step=1,key="per_column" )
+                    if st.button(f"Draw selected range in 2D: {start} - {end}", key="le_2dview_button"):
                         img = self._summary_2Dview(suppl, int(start), int(end), states, hl_mol=ref_mol, per_column=per_column)
 
                 elif st.session_state.output_settings["mode"] == "3D View":
-                    st.write("スコアリング結果を3D形式で表示します。")
+                    st.write("Display scoring results in 3D.")
                     idx = st.number_input(
-                        "表示したい構造のインデックスを入力",
+                        "Enter the index of the structure to display",
                         min_value=min(mol_indices),
                         max_value=max(mol_indices),
                         value=0,
@@ -396,7 +396,7 @@ class OutputController:
 
                     mol = suppl[idx]
                     if mol is None:
-                        st.warning(f"{idx} 番目の分子は読み込みできませんでした。")
+                        st.warning(f"Could not load molecule at index {idx}.")
                     else:
                         trajectory_num = mol.GetProp("trajectory_num")
                         sdir = os.path.join(os.getcwd(), st.session_state.output_settings["output_dir"], st.session_state.output_settings["SINCHOdir_name"])
@@ -459,7 +459,7 @@ class OutputController:
         buffer.seek(0)
 
         st.download_button(
-            label="この描画を保存する",
+            label="Download this figure",
             data=buffer,
             file_name="SINCHO-Gen_2DView.png",
             mime=os.getcwd()
@@ -575,13 +575,13 @@ class OutputController:
         view = py3Dmol.view(height=500, width=800)
         view.addModel(pdb_str, "pdb")
 
-        # 水分子（HOH, WAT）
+        # Water（HOH, WAT）
         view.setStyle({'resn': 'HOH'}, {"sphere": {"color": "skyblue", "radius": 0.3}})
         view.setStyle({'resn': 'WAT'}, {"sphere": {"color": "skyblue", "radius": 0.3}})
         # リガンドなど（水以外の HETATM）
         view.setStyle({'hetflag': True, 'resn': ['HOH', 'WAT'], 'invert': True},
                       {"stick": {"colorscheme": "greenCarbon"}})
-        # タンパク質
+        # Protein
         view.setStyle({'hetflag': False}, {"cartoon": {"color": "gray"}})
         if zoomres:
             view.zoomTo({'resi': zoomres.split(" ")[1]})

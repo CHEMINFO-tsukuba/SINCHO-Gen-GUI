@@ -8,7 +8,7 @@ base_image="${SINCHO_GUI_BASE_IMAGE:-sincho-gen:${version}}"
 output_image="${SINCHO_GUI_IMAGE:-sincho-gen-gui:${version}}"
 
 if ! docker image inspect "${base_image}" >/dev/null 2>&1; then
-  echo "[ERROR] SINCHO-Gen ${version}の基盤イメージがありません: ${base_image}" >&2
+  echo "[ERROR] SINCHO-Gen ${version} base image not found: ${base_image}" >&2
   exit 1
 fi
 

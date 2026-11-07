@@ -31,26 +31,26 @@ class InputController:
             st.session_state.general_settings.setdefault("dir_step", "init")
 
             st.session_state.general_settings["use_num_threads"] = st.number_input(
-                "並列スレッド数", value=12, step=1
+                "Number of parallel threads", value=12, step=1
             )
             st.session_state.general_settings["random_seed"] = st.number_input(
-                "乱数seed（-1でランダム）",
+                "Random seed (-1 for random)",
                 value=st.session_state.general_settings.get("random_seed", -1),
                 step=1,
             )
             st.session_state.general_settings["directory"] = st.text_input(
-                "出力ディレクトリ", value="./output"
+                "Output directory", value="./output"
             )
 
             wdir = os.path.join(os.getcwd(), st.session_state.general_settings["directory"])
 
             if st.session_state.general_settings["dir_step"] == "done":
-                st.success(f"ディレクトリが設定されました: {wdir}")
+                st.success(f"Directory configured: {wdir}")
                 # 次の設定UIなどをここに書ける
-                st.write("ここからさらに操作を続けられます")
+                st.write("You can continue configuring the remaining settings.")
 
             elif st.session_state.general_settings["dir_step"] == "init":
-                if st.button("上記のディレクトリに設定する"):
+                if st.button("Use this directory"):
                     if os.path.exists(wdir):
                         st.session_state.general_settings["dir_step"] = "confirm"
                         try:
@@ -67,11 +67,11 @@ class InputController:
                             except Exception as e:
                                 st.experimental_rerun()
                         except Exception as e:
-                            st.error(f"作成に失敗しました: {e}")
+                            st.error(f"Failed to create the directory: {e}")
 
             elif st.session_state.general_settings["dir_step"] == "confirm":
-                st.warning(f"ディレクトリ {wdir} は既に存在します。")
-                if st.button("上書きを許可する"):
+                st.warning(f"Directory {wdir} already exists.")
+                if st.button("Allow overwriting"):
                     try:
                         os.makedirs(os.path.join(wdir, "99_TMP"), exist_ok=True)
                         st.session_state.general_settings["tmp_dir"] = os.path.join(wdir, "99_TMP")
@@ -81,13 +81,13 @@ class InputController:
                         except Exception as e:
                             st.experimental_rerun()
                     except Exception as e:
-                        st.error(f"作成に失敗しました: {e}")
+                        st.error(f"Failed to create the directory: {e}")
 
         if sub_tab == "Initial Upload":
             st.title("Initial Complex Structure Upload")
 
 
-            uploaded_file = st.file_uploader("複合体のPDBファイルをアップロードしてください", type=["pdb"])
+            uploaded_file = st.file_uploader("Upload a PDB file of the complex", type=["pdb"])
 
             if uploaded_file:
                 # session_state に記録
@@ -101,10 +101,10 @@ class InputController:
                     f.write(uploaded_file.getvalue())
                 st.session_state.uploaded_pdb_file.path = tmp_path
                 
-                st.success(f"ファイルがアップロードされました ({tmp_path})")
-                st.write("ファイルを変更したい場合は再度アップロードしてください")
+                st.success(f"File uploaded ({tmp_path})")
+                st.write("Upload another file to replace the current file.")
                 """
-                if st.button("アップロードしたファイルをキャンセルする"):
+                if st.button("Cancel uploaded file"):
                     st.session_state.uploaded_pdb_file = None
                     uploaded_file = None
                     try:
@@ -116,7 +116,7 @@ class InputController:
                 if st.session_state.uploaded_pdb_file:
                     # session_state に残っているものを表示
                     self._pdb_3dview(st.session_state.uploaded_pdb_file)
-                    st.success(f"既にファイル({st.session_state.uploaded_pdb_file.name})がアップロードされています。")
+                    st.success(f"A file ({st.session_state.uploaded_pdb_file.name}) has already been uploaded.")
 
         if sub_tab == "Hit Residue Selection":
             st.title("Hit Residue Selection")
@@ -124,7 +124,7 @@ class InputController:
             try:
                 # まずPDBがアップロードされているかを確認
                 if not st.session_state.uploaded_pdb_file:
-                    st.warning("PDB ファイルがアップロードされていません。Initial Uploadタブに戻ってください。")
+                    st.warning("No PDB file has been uploaded. Return to the Initial Upload tab.")
                     st.stop()
                 
                 st.session_state.residues_list = self._residue_parser(st.session_state.uploaded_pdb_file)
@@ -135,7 +135,7 @@ class InputController:
 
                 
                 selected_residue = st.selectbox(
-                    "ヒット化合物の残基を選択してください(1残基のみ選択可能)",
+                    "Select the hit ligand residue (one residue only)",
                     st.session_state.residues_list,
                     index=st.session_state.residues_list.index(st.session_state.hit_residue)
                 )
@@ -143,12 +143,12 @@ class InputController:
                 # session_stateに更新
                 st.session_state.hit_residue = selected_residue
                 
-                st.success(f"選択された残基: {st.session_state.hit_residue}")
+                st.success(f"Selected residue: {st.session_state.hit_residue}")
                 self._pdb_3dview(st.session_state.uploaded_pdb_file, zoomres=st.session_state.hit_residue)
-                st.success("ヒット化合物が選択されました。次のステップに進んでください。")
+                st.success("The hit ligand has been selected. Proceed to the next step.")
 
             except Exception as e:
-                st.error(f"ファイルの読み込み中にエラーが発生しました: {e}")
+                st.error(f"Error reading the file: {e}")
 
         if sub_tab == "PDB File Editor":
             st.title("PDB File Direct Editor")
@@ -180,25 +180,25 @@ class InputController:
             if "pr_rec_interval" not in st.session_state.md_settings:
                 st.session_state.md_settings["pr_rec_interval"] = 2
 
-            with st.expander("力場パラメータ設定"):
-                st.session_state.md_settings["force_field"] = [st.selectbox("タンパク質",["ff14SB", "ff99SB", "ff19SB"], index=["ff14SB", "ff99SB", "ff19SB"].index(st.session_state.md_settings["force_field"][0])),
-                                                               st.selectbox("化合物",["gaff2", "gaff"], index=["gaff2", "gaff"].index(st.session_state.md_settings["force_field"][1])),
-                                                               st.selectbox("水分子",["tip3p", "spc"], index=["tip3p", "spc"].index(st.session_state.md_settings["force_field"][2])),
+            with st.expander("Force field parameters"):
+                st.session_state.md_settings["force_field"] = [st.selectbox("Protein",["ff14SB", "ff99SB", "ff19SB"], index=["ff14SB", "ff99SB", "ff19SB"].index(st.session_state.md_settings["force_field"][0])),
+                                                               st.selectbox("Compound",["gaff2", "gaff"], index=["gaff2", "gaff"].index(st.session_state.md_settings["force_field"][1])),
+                                                               st.selectbox("Water",["tip3p", "spc"], index=["tip3p", "spc"].index(st.session_state.md_settings["force_field"][2])),
                                                                st.selectbox("RNA (if any)",["OL3", "OL4"], index=["OL3", "OL4"].index(st.session_state.md_settings["force_field"][3]))]
-            st.success(f"選択された力場: {st.session_state.md_settings['force_field']}")
-            with st.expander("シミュレーション条件"): # （平衡化過程等は固定値を使用します。今後軽量版平衡化も選択可能にする予定。）
-                st.session_state.md_settings["temperature"] = st.number_input("温度 (K)(動的変数未実装：現状300K固定です)", value=st.session_state.md_settings["temperature"], step=1)
+            st.success(f"Selected force fields: {st.session_state.md_settings['force_field']}")
+            with st.expander("Simulation conditions"): # （平衡化過程等は固定値を使用します。今後軽量版平衡化も選択可能にする予定。）
+                st.session_state.md_settings["temperature"] = st.number_input("Temperature (K; currently fixed at 300 K)", value=st.session_state.md_settings["temperature"], step=1)
                 st.session_state.md_settings["charge_method"] = st.selectbox(
-                    "ligand電荷計算法",
+                    "Ligand charge calculation method",
                     ["gas", "bcc"],
                     index=["gas", "bcc"].index(
                         st.session_state.md_settings["charge_method"]
                     ),
                 )
                 
-                st.write("化合物のパラメータファイルの追加アップロード（残基ごと）➡無い場合はGasteiger chargeを使用")
+                st.write("Upload additional compound parameter files for each residue. Gasteiger charges are used if no files are provided.")
                 selected_residues = st.multiselect(        
-                    "パラメータを設定したい残基を選んでください（複数可）",
+                    "Select residues to parameterize (multiple selections allowed)",
                     st.session_state.residues_list,
                     default=[st.session_state.hit_residue])
 
@@ -210,9 +210,9 @@ class InputController:
                 # 各残基についてアップロード UI と保存処理
                 saved_paths = []
                 for resname in selected_residues:
-                    st.markdown(f"### 🔹 残基 `{resname}` のパラメータファイル")
+                    st.markdown(f"### 🔹 Parameter files for residue `{resname}`")
                     files = st.file_uploader(
-                        f"{resname} に対応する .prep / .frcmod ファイルをアップロード",
+                        f"Upload .prep / .frcmod files for {resname}",
                         type=["prep", "frcmod"],
                         accept_multiple_files=True,
                         key=f"uploader_{resname}"
@@ -228,31 +228,31 @@ class InputController:
                 # 保存
                 st.session_state.md_settings["additional_parameters"] = saved_paths
 
-                st.success(f"{selected_residues} に対応するファイルを保存しました")
+                st.success(f"Saved files for {selected_residues}")
                 st.success(glob.glob(os.path.join(tmp_dir, "*.prep")) + glob.glob(os.path.join(tmp_dir, "*.frcmod")))
 
 
 
 
-                st.session_state.md_settings["box_shape"] = st.selectbox("ボックス形状", ["rectangular", "cube"], index=["rectangular", "cube"].index(st.session_state.md_settings["box_shape"]))
+                st.session_state.md_settings["box_shape"] = st.selectbox("Box shape", ["rectangular", "cube"], index=["rectangular", "cube"].index(st.session_state.md_settings["box_shape"]))
                 if st.session_state.md_settings["box_shape"] == "cube":
-                    st.session_state.md_settings["box_size"] = st.number_input("ボックスサイズ (Å)", value=st.session_state.md_settings["box_size"], step=1.0)
+                    st.session_state.md_settings["box_size"] = st.number_input("Box size (Å)", value=st.session_state.md_settings["box_size"], step=1.0)
                 else:
-                    st.session_state.md_settings["buffer"] = st.number_input("バッファサイズ (Å)", value=st.session_state.md_settings["buffer"], step=0.1)    
+                    st.session_state.md_settings["buffer"] = st.number_input("Buffer size (Å)", value=st.session_state.md_settings["buffer"], step=0.1)
 
-            st.write("Production Runの詳細設定をしてください")
-            st.session_state.md_settings["pr_run_time"] = st.number_input("Production Run時間 (ns)", value=st.session_state.md_settings["pr_run_time"], step=1)
-            st.session_state.md_settings["pr_rec_interval"] = st.number_input("インターバル (ns)", value= st.session_state.md_settings["pr_rec_interval"], step=1)
+            st.write("Configure the production run.")
+            st.session_state.md_settings["pr_run_time"] = st.number_input("Production run duration (ns)", value=st.session_state.md_settings["pr_run_time"], step=1)
+            st.session_state.md_settings["pr_rec_interval"] = st.number_input("Recording interval (ns)", value= st.session_state.md_settings["pr_rec_interval"], step=1)
             snaps = Fraction(st.session_state.md_settings["pr_run_time"]) / Fraction(st.session_state.md_settings["pr_rec_interval"])
             maximum_steps = st.session_state.md_settings["pr_run_time"]/(0.002/1000000)
             if snaps.denominator==1:
                 if int(snaps) > maximum_steps or int(snaps)<1:
-                    st.warning(f"1 <= (Production Run時間)/(インターバル) <= {int(maximum_steps)}を満たしてください")
+                    st.warning(f"Ensure 1 <= (production run duration)/(recording interval) <= {int(maximum_steps)}.")
                 else:
-                    st.success(f"{snaps}コ+1コ(0ns)={snaps+1}コのスナップショットが保存され、以下の処理に使用されます。\n次のステップに進んでください。")
+                    st.success(f"{snaps} + 1 (at 0 ns) = {snaps+1} snapshots will be saved for subsequent processing.\nProceed to the next step.")
                     st.session_state.md_settings["snapshots"] = int(snaps)
             else:
-                st.warning(f"(Production Run時間)/(インターバル)を整数値にしてください")
+                st.warning(f"The production run duration divided by the recording interval must be an integer.")
                 st.session_state.md_settings["snapshots"] = None
 
         if sub_tab == "SINCHO Settings":
@@ -269,18 +269,18 @@ class InputController:
                 st.session_state.p2c_sincho_settings["r_point_atoms"] = None
 
             if st.session_state.md_settings["snapshots"]:
-                st.success(f"MDシミュレーションから得られるトラジェクトリから、\n{str(st.session_state.md_settings['snapshots']+1)}個のスナップショットを保存して以降の処理を進めます。")
-                st.session_state.p2c_sincho_settings["distance_range"] = st.number_input("P2Cのポケット探索範囲(化合物からX[Å]以内のポケットのみ探索)", value=st.session_state.p2c_sincho_settings["distance_range"], step=0.1)
-                st.session_state.p2c_sincho_settings["npairs_per_snap"] = st.number_input("SINCHO結果の出力数(per snapshot)", value=st.session_state.p2c_sincho_settings["npairs_per_snap"], step=1)
-                st.session_state.p2c_sincho_settings["for_chemts"] = st.number_input("化合物生成に使用するSINCHO結果のペア数(per snapshot)", value=st.session_state.p2c_sincho_settings["for_chemts"], step=1)
+                st.success(f"{str(st.session_state.md_settings['snapshots']+1)} snapshots from the MD trajectory will be saved for subsequent processing.")
+                st.session_state.p2c_sincho_settings["distance_range"] = st.number_input("P2C pocket search radius from the compound (Å)", value=st.session_state.p2c_sincho_settings["distance_range"], step=0.1)
+                st.session_state.p2c_sincho_settings["npairs_per_snap"] = st.number_input("Number of SINCHO output pairs per snapshot", value=st.session_state.p2c_sincho_settings["npairs_per_snap"], step=1)
+                st.session_state.p2c_sincho_settings["for_chemts"] = st.number_input("Number of SINCHO pairs used for compound generation per snapshot", value=st.session_state.p2c_sincho_settings["for_chemts"], step=1)
                 if st.session_state.p2c_sincho_settings["npairs_per_snap"] < st.session_state.p2c_sincho_settings["for_chemts"]:
-                    st.warning("SINCHOの予測ペア数 > ChemTSに渡すペア数 である必要があります。\n設定を見直してください")
+                    st.warning("The number of SINCHO predicted pairs must exceed the number of pairs passed to ChemTS.\nReview the settings.")
                 else:
-                    st.success("SINCHOの設定が完了しました。上記の設定で問題無ければ、次のステップに進んでください。")
+                    st.success("SINCHO configuration is complete. Review the settings and proceed to the next step.")
             else:
-                st.warning("スナップショット数の設定が適切ではありません。Production Run設定に戻ってください")
+                st.warning("The snapshot count is invalid. Return to the production run settings.")
 
-            st.write("R-pointsの制限（optional）")
+            st.write("Restrict R-points (optional)")
             name_list = self._pdb_3dview_res(st.session_state.hit_residue)
 
             # ① 初期化：p2c_sincho_settings 側
@@ -300,7 +300,7 @@ class InputController:
 
             # ③ multiselect（ここでは default は渡さないのが重要）
             st.session_state.p2c_sincho_settings["r_point_atoms"] = st.multiselect(
-                "R-pointとして使用するatomname「のみ」残してください",
+                "Keep only the atom names to use as R-points",
                 name_list,
                 key="selected_r_points",
             )
@@ -312,41 +312,41 @@ class InputController:
             if "chemts_settings" not in st.session_state:
                 st.session_state.chemts_settings = {}
             if "num_chemts_loops" not in st.session_state.chemts_settings:
-                st.session_state.chemts_settings["num_chemts_loops"] = 4  # 生成の反復回数
+                st.session_state.chemts_settings["num_chemts_loops"] = 4  # Number of generation iterations
             if "c_val" not in st.session_state.chemts_settings:
-                st.session_state.chemts_settings["c_val"] = 1.0           # C値
+                st.session_state.chemts_settings["c_val"] = 1.0           # C value
             if "num_parallel" not in st.session_state.chemts_settings:
                 st.session_state.chemts_settings["num_parallel"] = 1
             if "threshold_type" not in st.session_state.chemts_settings:
                 st.session_state.chemts_settings["threshold_type"] = "time"  # 終了条件のタイプ
             if "threshold" not in st.session_state.chemts_settings:
-                st.session_state.chemts_settings["threshold"] = 0.05      # 終了条件の値 (時間 or 生成数)
+                st.session_state.chemts_settings["threshold"] = 0.05      # 終了条件の値 (時間 or Number of generated compounds)
             if "function_format" not in st.session_state.chemts_settings:
                 st.session_state.chemts_settings["function_format"] = "only_sincho"  # 報酬の形式
             if "model_profile" not in st.session_state.chemts_settings:
                 st.session_state.chemts_settings["model_profile"] = "riken"
 
-            st.success(f"スナップショット:{st.session_state.md_settings['snapshots']+1}コ × リード展開方針:{st.session_state.p2c_sincho_settings['for_chemts']}コを用いてリード分子生成を行います。")
+            st.success(f"Lead molecules will be generated using {st.session_state.md_settings['snapshots']+1} snapshots × {st.session_state.p2c_sincho_settings['for_chemts']} lead extension strategies.")
             with st.expander("Basic setting"):
-                st.session_state.chemts_settings["num_chemts_loops"] = st.number_input("生成の反復回数", value=st.session_state.chemts_settings["num_chemts_loops"], step=1)
+                st.session_state.chemts_settings["num_chemts_loops"] = st.number_input("Number of generation iterations", value=st.session_state.chemts_settings["num_chemts_loops"], step=1)
                 st.session_state.chemts_settings["num_parallel"] = st.number_input(
-                    "ChemTS同時実行数",
+                    "Number of concurrent ChemTS runs",
                     value=st.session_state.chemts_settings["num_parallel"],
                     min_value=1,
                     max_value=int(st.session_state.general_settings["use_num_threads"]),
                     step=1,
                 )
-                st.session_state.chemts_settings["c_val"] = st.number_input("C値", value=st.session_state.chemts_settings["c_val"], step=0.1)
-                st.session_state.chemts_settings["threshold_type"] = st.selectbox("1回の生成の終了条件", options=["time","generation_num"], index=["time","generation_num"].index(st.session_state.chemts_settings["threshold_type"]))
+                st.session_state.chemts_settings["c_val"] = st.number_input("C value", value=st.session_state.chemts_settings["c_val"], step=0.1)
+                st.session_state.chemts_settings["threshold_type"] = st.selectbox("Stopping condition for each generation run", options=["time","generation_num"], index=["time","generation_num"].index(st.session_state.chemts_settings["threshold_type"]))
                 if st.session_state.chemts_settings["threshold_type"] == "generation_num":
-                    st.session_state.chemts_settings["threshold"] = st.number_input("生成数", value=st.session_state.chemts_settings["threshold"], step=1)
+                    st.session_state.chemts_settings["threshold"] = st.number_input("Number of generated compounds", value=st.session_state.chemts_settings["threshold"], step=1)
                 elif st.session_state.chemts_settings["threshold_type"] == "time":
-                    st.session_state.chemts_settings["threshold"] = st.number_input("時間 (hour)", value=st.session_state.chemts_settings["threshold"], step=0.01)
+                    st.session_state.chemts_settings["threshold"] = st.number_input("Time (hours)", value=st.session_state.chemts_settings["threshold"], step=0.01)
                     scaler = st.session_state.chemts_settings["threshold"]*st.session_state.chemts_settings["num_chemts_loops"]*st.session_state.p2c_sincho_settings["npairs_per_snap"]*st.session_state.md_settings["snapshots"]
-                    st.write(f"ChemTSのおおよその実行時間: {round(scaler,3)}時間")
+                    st.write(f"Estimated ChemTS runtime: {round(scaler,3)} hours")
 
                 st.session_state.chemts_settings["model_profile"] = st.selectbox(
-                    "ChemTSモデル",
+                    "ChemTS model",
                     options=["public", "riken", "weight"],
                     index=["public", "riken", "weight"].index(
                         st.session_state.chemts_settings["model_profile"]
@@ -354,10 +354,10 @@ class InputController:
                 )
                 
             with st.expander("Advanced setting"):
-                st.write("後々実装予定。それまでは最後の直編集パネルでの設定をお願いします。")
+                st.write("This feature is planned. For now, configure it in the YAML editor on the Summary tab.")
             
             with st.expander("Filter setting"):
-                st.write("後々実装予定。それまでは最後の直編集パネルでの設定をお願いします。")
+                st.write("This feature is planned. For now, configure it in the YAML editor on the Summary tab.")
                 """
                 filter_dict = {"lipinski":[["rule_of_5","rule_of_3"],0],"radical":None,"pubchem":None,"sascore":[3.5],"ring_size":[6],"pains":[["[pains_a]"],0],"donor_acceptor":None}
                 for fil,op in filter_dict.items():
@@ -372,11 +372,11 @@ class InputController:
                 """
 
             with st.expander("Reward setting"):
-                st.session_state.chemts_settings["function_format"] = st.selectbox("報酬の形式を選択してください", options=["only_sincho", "cns"], index=["only_sincho", "cns"].index(st.session_state.chemts_settings["function_format"]))
-                st.write("各項の形式は固定値を使用します。修正は最後の直編集パネルで行ってください")
-                st.write("現状、only_sinchoのみ適用可能。CNSを今後適用予定")
-            st.write("ChemTSの設定が完了しました。上記の設定で問題無ければ、次のステップに進んでください。")
-            st.success("ChemTSの設定が完了しました。上記の設定で問題無ければ、次のステップに進んでください。")
+                st.session_state.chemts_settings["function_format"] = st.selectbox("Select the reward function format", options=["only_sincho", "cns"], index=["only_sincho", "cns"].index(st.session_state.chemts_settings["function_format"]))
+                st.write("Each term uses a fixed format. Use the YAML editor on the Summary tab to make changes.")
+                st.write("Currently, only only_sincho is supported. CNS support is planned.")
+            st.write("ChemTS configuration is complete. Review the settings and proceed to the next step.")
+            st.success("ChemTS configuration is complete. Review the settings and proceed to the next step.")
 
         if sub_tab == "AAScore Settings":
             st.title("AAScore Settings")
@@ -385,33 +385,33 @@ class InputController:
             if "method" not in st.session_state.aascore_settings:
                 st.session_state.aascore_settings["method"] = "all"  # スコア計算の方法
             if "num_of_cpd" not in st.session_state.aascore_settings:
-                st.session_state.aascore_settings["num_of_cpd"] = 50  # ランダム選択する化合物数
+                st.session_state.aascore_settings["num_of_cpd"] = 50  # ランダム選択するCompound数
             if "reward_cutoff" not in st.session_state.aascore_settings:
-                st.session_state.aascore_settings["reward_cutoff"] = 1.00  # カットオフのreward値
+                st.session_state.aascore_settings["reward_cutoff"] = 1.00  # Reward cutoff
             if "conf_per_cpd" not in st.session_state.aascore_settings:
-                st.session_state.aascore_settings["conf_per_cpd"] = 20  # 1化合物当たりのconformation数
+                st.session_state.aascore_settings["conf_per_cpd"] = 20  # 1Compound当たりのconformation数
             if "max_attempts" not in st.session_state.aascore_settings:
-                st.session_state.aascore_settings["max_attempts"] = 100  # Embedの最大試行回数
+                st.session_state.aascore_settings["max_attempts"] = 100  # Maximum embedding attempts
             if "rms_thresh" not in st.session_state.aascore_settings:
-                st.session_state.aascore_settings["rms_thresh"] = 0.25  # 構造間でpruneするRMS閾値[Å]
+                st.session_state.aascore_settings["rms_thresh"] = 0.25  # RMS pruning threshold between conformers (Å)
             if "protein_range" not in st.session_state.aascore_settings:
-                st.session_state.aascore_settings["protein_range"] = 13  # 計算時のポケット範囲(ヒットからX[Å]以内の残基)
+                st.session_state.aascore_settings["protein_range"] = 13  # Scoring pocket radius from the hit ligand (Å)
             if "output_num" not in st.session_state.aascore_settings:
-                st.session_state.aascore_settings["output_num"] = 5000   # 出力sdfファイルに格納する化合物数
+                st.session_state.aascore_settings["output_num"] = 5000   # Number of compounds in the output SDF file
 
 
 
-            st.session_state.aascore_settings["method"] = st.selectbox("生成された化合物の内、どれをスコア計算するか？", options=["all", "rand"], index=["all", "rand"].index(st.session_state.aascore_settings["method"]))
+            st.session_state.aascore_settings["method"] = st.selectbox("Select which generated compounds to score", options=["all", "rand"], index=["all", "rand"].index(st.session_state.aascore_settings["method"]))
             if st.session_state.aascore_settings["method"] == "rand":
-                st.session_state.aascore_settings["num_of_cpd"] = st.number_input("ランダムに選択する化合物の数", value=st.session_state.aascore_settings["num_of_cpd"], step=1)
-            st.session_state.aascore_settings["reward_cutoff"] = st.number_input("カットオフのreward値", value=st.session_state.aascore_settings["reward_cutoff"], step=0.01, max_value=1.00, min_value=0.00)
-            st.session_state.aascore_settings["conf_per_cpd"] = st.number_input("1化合物当たりの最大conformation数", value= st.session_state.aascore_settings["conf_per_cpd"], step=1)
-            with st.expander("conformation生成の追加設定"):
-                st.session_state.aascore_settings["max_attempts"] = st.number_input("Embedの最大試行回数", value= st.session_state.aascore_settings["max_attempts"], step=1)
-                st.session_state.aascore_settings["rms_thresh"] = st.number_input("構造間でpruneするRMS閾値[Å]", value= st.session_state.aascore_settings["rms_thresh"], step=0.01)
-            st.session_state.aascore_settings["protein_range"] = st.number_input("計算時のポケット範囲(ヒットからX[Å]以内の残基)", value= st.session_state.aascore_settings["protein_range"], step=1)
-            st.session_state.aascore_settings["output_num"] = st.number_input("出力sdfファイルに格納する化合物数", value= st.session_state.aascore_settings["output_num"], step=1)
-            st.success("AAScoreの設定が完了しました。上記の設定で問題無ければ、次のステップに進んでください。")
+                st.session_state.aascore_settings["num_of_cpd"] = st.number_input("Number of compounds to select randomly", value=st.session_state.aascore_settings["num_of_cpd"], step=1)
+            st.session_state.aascore_settings["reward_cutoff"] = st.number_input("Reward cutoff", value=st.session_state.aascore_settings["reward_cutoff"], step=0.01, max_value=1.00, min_value=0.00)
+            st.session_state.aascore_settings["conf_per_cpd"] = st.number_input("Maximum number of conformers per compound", value= st.session_state.aascore_settings["conf_per_cpd"], step=1)
+            with st.expander("Additional conformer generation settings"):
+                st.session_state.aascore_settings["max_attempts"] = st.number_input("Maximum embedding attempts", value= st.session_state.aascore_settings["max_attempts"], step=1)
+                st.session_state.aascore_settings["rms_thresh"] = st.number_input("RMS pruning threshold between conformers (Å)", value= st.session_state.aascore_settings["rms_thresh"], step=0.01)
+            st.session_state.aascore_settings["protein_range"] = st.number_input("Scoring pocket radius from the hit ligand (Å)", value= st.session_state.aascore_settings["protein_range"], step=1)
+            st.session_state.aascore_settings["output_num"] = st.number_input("Number of compounds in the output SDF file", value= st.session_state.aascore_settings["output_num"], step=1)
+            st.success("AAScore configuration is complete. Review the settings and proceed to the next step.")
 
         if sub_tab == "Summary":
 
@@ -501,8 +501,8 @@ class InputController:
 
 
             st.title("Settings Summary")
-            st.write(f"ディレクトリ：{os.getcwd()}に入力ファイルを作成します。")
-            st.session_state.yaml_name = st.text_input("YAMLファイル名", value="conditions_lala.yaml")
+            st.write(f"Input files will be created in {os.getcwd()}.")
+            st.session_state.yaml_name = st.text_input("YAML filename", value="conditions_lala.yaml")
             if st.session_state.yaml_content is None:
                 with open(os.path.join(os.path.dirname(__file__), "conditions_tmp.yaml"), 'r') as file:
                     yaml_content = file.read()
@@ -511,18 +511,18 @@ class InputController:
                 st.session_state.yaml_content = yaml_content
                 for k in replace_dict.keys():
                     if k in st.session_state.yaml_content:
-                        st.warning(f"{k} が 指定されていません。他のタブで設定し直してください。")
+                        st.warning(f"{k} is not specified. Configure it in the corresponding tab.")
 
 
             st.session_state.yaml_content = st.text_area(
-                    "Edit YAML content: 追加で編集したい場合は以下を変更してください。",
+                    "Edit YAML content below to make additional changes.",
                     value=st.session_state.yaml_content,
                     height=600,
                     key="edited_yaml"
                 )
-            if st.button("yamlの初期化"):
+            if st.button("Reset YAML"):
                 st.session_state.yaml_content = None
-                st.success("YAML内容が初期化されました。")
+                st.success("YAML content has been reset.")
                 try:
                     st.rerun()
                 except Exception as e:
@@ -543,26 +543,26 @@ class InputController:
                 try:
                     yaml.safe_load(edited_text)
                 except yaml.YAMLError as exc:
-                    st.error(f"YAMLの構文が不正です: {exc}")
+                    st.error(f"Invalid YAML syntax: {exc}")
                     st.stop()
                 with open(yaml_file, 'w') as f:
                     f.write(edited_text)
-                st.success(f"YAMLファイルを保存しました: {yaml_file}")
+                st.success(f"YAML file saved: {yaml_file}")
                 if overwrite_avoider > 0:
-                    st.warning(f"ファイル名が重複したため、ファイル名に'_{overwrite_avoider}'を付加しました。")
+                    st.warning(f"The filename already exists. Appended '_{overwrite_avoider}' to the filename.")
                 try:
                     shutil.copy(yaml_file, st.session_state.general_settings["tmp_dir"])
                     st.success(
-                        f"{yaml_file}を{st.session_state.general_settings['tmp_dir']}に"
-                        "バックアップしました。"
+                        f"Backed up {yaml_file} to {st.session_state.general_settings['tmp_dir']}."
+                        ""
                     )
                 except:
                     st.error(
-                        f"{yaml_file}の{st.session_state.general_settings['tmp_dir']}への"
-                        "バックアップに失敗しました。手動でバックアップしてください。"
+                        f"Failed to back up {yaml_file} to {st.session_state.general_settings['tmp_dir']}. "
+                        "Please back up the file manually."
                     )
                 st.success(
-                    "設定が完了しました。コンテナ内ターミナルで以下を実行してください。"
+                    "Configuration is complete. Run the following command in a terminal inside the container."
                 )
                 st.code(
                     f"python /SINCHO-Gen/extend_driver.py {yaml_file.split('/')[-1]}"
@@ -576,13 +576,13 @@ class InputController:
         view = py3Dmol.view(height=500, width=800)
         view.addModel(pdb_str, "pdb")
 
-        # 水分子（HOH, WAT）
+        # Water（HOH, WAT）
         view.setStyle({'resn': 'HOH'}, {"sphere": {"color": "skyblue", "radius": 0.3}})
         view.setStyle({'resn': 'WAT'}, {"sphere": {"color": "skyblue", "radius": 0.3}})
         # リガンドなど（水以外の HETATM）
         view.setStyle({'hetflag': True, 'resn': ['HOH', 'WAT'], 'invert': True},
                       {"stick": {"colorscheme": "greenCarbon"}})
-        # タンパク質
+        # Protein
         view.setStyle({'hetflag': False}, {"cartoon": {"color": "gray"}})
         if zoomres:
             view.zoomTo({'resi': zoomres.split(" ")[1]})
@@ -860,9 +860,9 @@ class InputController:
         st.divider()
 
         st.info(
-            "ligandの結合次数を保持するため、CONECT行は編集後のPDBにも保持します。"
-            "non-bonded modelで扱う配位金属のCONECTだけは、必要に応じて"
-            "アップロード前または直接編集で除去してください。"
+            "CONECT records are retained in the edited PDB to preserve ligand bond orders. "
+            "For coordinated metals treated with a non-bonded model, remove only the relevant CONECT records "
+            "before uploading or by editing the file directly, if needed."
         )
 
 
